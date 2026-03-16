@@ -1,0 +1,379 @@
+# this, call, apply, bind
+
+## Суть и контекст
+
+`this` в JavaScript — специальное ключевое слово, значение которого определяется **в момент вызова функции**, а не в момент её объявления. Это отличает JS от классических ООП-языков. Понимание 4 правил привязки `this` — ключевой навык для работы с методами, коллбэками и декораторами.
+
+## Ключевые идеи
+
+- `this` **не** ссылается на саму функцию и **не** ссылается на её лексическую область видимости
+- Значение `this` определяется **точкой вызова** (call-site), а не местом объявления
+- Существует **4 правила** привязки в порядке убывания приоритета: `new` > explicit > implicit > default
+- Потеря контекста (losing this) — частый баг при передаче метода как коллбэка
+- Arrow function: `this` лексический — берётся из внешней области, изменить нельзя
+- `call` и `apply` — вызывают немедленно с явным `this`; `bind` — возвращает новую функцию
+
+## Определения и термины
+
+**this** — ключевое слово, ссылающееся на объект контекста вызова. Значение определяется при каждом вызове функции.
+
+**Call-site (Точка вызова)** — место в коде, где происходит непосредственный вызов функции.
+
+**Default binding (Привязка по умолчанию)** — если ни одно другое правило не применимо: в non-strict mode `this = window` (глобальный объект); в strict mode `this = undefined`.
+
+**Implicit binding (Неявная привязка)** — вызов функции как метода объекта через точку: `obj.foo()` → `this = obj`.
+
+**Explicit binding (Явная привязка)** — явное указание `this` через `call`, `apply` или `bind`.
+
+**New binding** — вызов через `new`: создаётся новый объект, `this` привязывается к нему. Наивысший приоритет.
+
+**Losing this (Потеря контекста)** — ситуация, когда ссылка на метод присваивается переменной или передаётся как коллбэк — неявная привязка теряется, срабатывает привязка по умолчанию.
+
+**Lexical this** — `this` стрелочной функции, заимствованный из внешней (окружающей) области видимости. Неизменяем.
+
+**Call forwarding** — паттерн прозрачной передачи `this` и аргументов в декораторе: `func.apply(this, arguments)`.
+
+## Как устроено
+
+### 4 правила привязки `this`
+
+#### Правило 1: New binding (наивысший приоритет)
+
+```javascript
+function Foo(a) {
+  this.a = a;
+}
+var bar = new Foo(2);
+console.log(bar.a); // 2 — this = новый объект bar
+```
+
+При `new`: создаётся новый пустой объект → привязывается к `this` → выполняется функция → объект возвращается.
+
+#### Правило 2: Explicit binding
+
+```javascript
+function foo() { console.log(this.a); }
+var obj = { a: 2 };
+
+foo.call(obj);   // 2 — this принудительно = obj
+foo.apply(obj);  // 2
+```
+
+#### Правило 3: Implicit binding
+
+```javascript
+function foo() { console.log(this.a); }
+
+var obj = { a: 2, foo: foo };
+obj.foo(); // 2 — this = obj (объект перед точкой)
+
+// Цепочка: берётся ближайший к функции объект
+var obj2 = { a: 42, obj: obj };
+obj2.obj.foo(); // 2 — this = obj, а не obj2
+```
+
+#### Правило 4: Default binding (низший приоритет)
+
+```javascript
+function foo() {
+  console.log(this);
+}
+foo(); // window (non-strict) или undefined (strict)
+
+function bar() {
+  "use strict";
+  console.log(this); // undefined
+}
+bar();
+```
+
+### Потеря контекста (Losing this)
+
+**Случай 1: Присваивание метода переменной**
+```javascript
+var obj = {
+  a: 2,
+  foo: function() { console.log(this.a); }
+};
+
+var bar = obj.foo; // bar — просто ссылка на функцию
+bar();             // undefined (default binding) — точка вызова: bar()
+```
+
+**Случай 2: Передача метода как коллбэка**
+```javascript
+setTimeout(obj.foo, 100); // Потеряет контекст!
+// Эквивалентно: var fn = obj.foo; setTimeout(fn, 100);
+// fn() — вызов без объекта → default binding
+```
+
+**Решения:**
+```javascript
+// 1. Функция-обёртка
+setTimeout(function() { obj.foo(); }, 100); // obj.foo() — implicit binding сохранён
+
+// 2. bind
+setTimeout(obj.foo.bind(obj), 100); // жёсткая привязка
+
+// 3. Arrow function
+var obj = {
+  a: 2,
+  foo: function() {
+    setTimeout(() => {
+      console.log(this.a); // 2 — arrow берёт this из foo
+    }, 100);
+  }
+};
+obj.foo();
+```
+
+### this в стрелочных функциях
+
+```javascript
+var obj = {
+  a: 2,
+  foo: function() {
+    var self = this; // старый паттерн ES5
+
+    setTimeout(function() {
+      console.log(self.a); // 2 — через self
+    }, 100);
+
+    setTimeout(() => {
+      console.log(this.a); // 2 — arrow, this из foo
+    }, 100);
+  }
+};
+obj.foo();
+```
+
+Лексический `this` стрелочной функции **нельзя изменить** никаким способом:
+```javascript
+var arrow = () => console.log(this);
+arrow.call({ a: 1 }); // всё равно глобальный this (или undefined в strict)
+arrow.bind({ a: 1 })(); // не работает
+new arrow(); // TypeError
+```
+
+### call vs apply vs bind
+
+```javascript
+function greet(greeting, punctuation) {
+  console.log(greeting + ', ' + this.name + punctuation);
+}
+var user = { name: 'Вася' };
+
+// call: аргументы через запятую, вызов немедленный
+greet.call(user, 'Привет', '!');   // 'Привет, Вася!'
+
+// apply: аргументы массивом, вызов немедленный
+greet.apply(user, ['Здравствуй', '.']); // 'Здравствуй, Вася.'
+
+// bind: возвращает новую функцию с жёстко привязанным this
+var sayHi = greet.bind(user, 'Хей'); // фиксируем this и первый аргумент
+sayHi(' :)'); // 'Хей, Вася :)'
+sayHi('!!!'); // 'Хей, Вася!!!'
+```
+
+### Частичное применение (Partial application) через bind
+
+```javascript
+function multiply(a, b) {
+  return a * b;
+}
+
+// Фиксируем первый аргумент, this = null (не используется)
+const double = multiply.bind(null, 2);
+double(5);  // 10
+double(10); // 20
+
+const triple = multiply.bind(null, 3);
+triple(5);  // 15
+```
+
+### Декоратор с call forwarding
+
+```javascript
+function makeLogging(f, logArray) {
+  return function wrapper() {
+    // Копируем arguments в массив
+    logArray.push([].slice.call(arguments));
+    // Прозрачно передаём this и аргументы
+    return f.apply(this, arguments);
+  };
+}
+
+var user = {
+  name: 'Вася',
+  work: function(a, b) {
+    console.log(this.name + ' вычисляет: ' + (a + b));
+    return a + b;
+  }
+};
+
+var log = [];
+user.work = makeLogging(user.work, log);
+user.work(1, 2); // 'Вася вычисляет: 3' — this = user, args = [1, 2]
+```
+
+`f.apply(this, arguments)`:
+- `this` = `user` (т.к. обёртка вызвана как `user.work()`)
+- `arguments` = `[1, 2]`
+
+## Детали и нюансы
+
+### Приоритет правил
+
+```
+new → explicit (call/apply/bind) → implicit (obj.foo()) → default (foo())
+```
+
+### Hard binding через bind
+
+`bind` создаёт функцию с жёстко привязанным `this`. Даже `call`/`apply` на неё не работают:
+
+```javascript
+function foo() { console.log(this.a); }
+var obj = { a: 2 };
+var hardBound = foo.bind(obj);
+
+hardBound.call({ a: 99 }); // 2 — bind сильнее call
+```
+
+**Исключение**: `new` может переопределить `bind`:
+```javascript
+var obj = { a: 2 };
+var bound = foo.bind(obj);
+var newObj = new bound(); // this = newObj, а не obj
+```
+
+### apply с массивом аргументов
+
+```javascript
+// Нахождение максимума из массива (ES5)
+var nums = [3, 1, 4, 1, 5, 9];
+Math.max.apply(null, nums); // 9
+
+// ES6 — spread удобнее
+Math.max(...nums); // 9
+```
+
+## Сравнения и trade-offs
+
+| | `call` | `apply` | `bind` |
+|---|---|---|---|
+| Когда вызывает | Немедленно | Немедленно | Не вызывает |
+| Аргументы | Через запятую | Массивом | Через запятую (частичное применение) |
+| Возвращает | Результат функции | Результат функции | Новую функцию |
+| Изменяет this | Одноразово | Одноразово | Навсегда (hard binding) |
+
+| Тип `this` | Источник | Можно изменить? |
+|---|---|---|
+| Default | `window` / `undefined` | Да (через explicit) |
+| Implicit | Объект перед точкой | Да (через explicit) |
+| Explicit (`call`/`apply`) | Первый аргумент | Да (следующим вызовом) |
+| Hard (`bind`) | Аргумент `bind` | Только через `new` |
+| Lexical (arrow) | Внешняя область видимости | Нет |
+
+## Примеры
+
+### Классический баг: this в обработчике события
+
+```javascript
+function Button(label) {
+  this.label = label;
+}
+
+Button.prototype.click = function() {
+  console.log(this.label); // this — кто вызвал
+};
+
+var btn = new Button('Submit');
+
+// BAD: обработчик вызывается без объекта
+document.addEventListener('click', btn.click); // undefined
+
+// GOOD: привязываем контекст
+document.addEventListener('click', btn.click.bind(btn)); // 'Submit'
+```
+
+### Определение this по правилам
+
+```javascript
+function foo() { console.log(this.a); }
+var obj1 = { a: 1, foo: foo };
+var obj2 = { a: 2, foo: foo };
+
+obj1.foo();        // 1 — implicit, this = obj1
+obj2.foo();        // 2 — implicit, this = obj2
+obj1.foo.call(obj2); // 2 — explicit побеждает implicit
+```
+
+## Связи с другими темами
+
+- [[Функции]] — декораторы, function declaration vs arrow
+- [[Замыкания]] — паттерн `self = this` (ES5) vs arrow (ES6)
+- [[Прототипы и наследование]] — `this` в методах прототипа, super
+- [[Объекты]] — `this` как ссылка на объект-владелец метода
+
+## Важно / подводные камни / best practices
+
+- **Никогда не используй `this` как ссылку на функцию** — это частое заблуждение
+- **Передача метода как коллбэка** — всегда теряет `this`. Решение: `bind` или arrow
+- **Стрелочная функция как метод объекта** — плохая идея: `this` будет внешним, не объектом
+- **`bind` для обработчиков событий** — `this.method = this.method.bind(this)` в конструкторе класса
+- **Декораторы** — всегда используй `func.apply(this, arguments)` для прозрачного форвардинга
+- **Строгий режим (`use strict`)** — `this = undefined` при default binding; помогает отловить баги
+- **`apply` с массивом** — классический паттерн для `Math.max.apply(null, arr)` (в ES6 замени на spread)
+
+---
+
+## Карточки для повторения
+
+#flashcards
+
+Что такое `this` в JavaScript?::Ключевое слово, ссылающееся на объект контекста вызова. Значение определяется **в момент вызова** функции, а не в момент её объявления.
+
+На что `this` не ссылается?::На саму функцию и на её лексическую область видимости.
+
+Перечисли 4 правила привязки `this` в порядке убывания приоритета::1. `new` binding. 2. Explicit binding (`call`/`apply`/`bind`). 3. Implicit binding (obj.foo()). 4. Default binding (foo()).
+
+Что такое implicit binding?::Вызов функции как метода объекта через точку: `obj.foo()` → `this = obj`. Берётся ближайший к функции объект.
+
+Что такое потеря контекста (losing this)?::Когда ссылка на метод присваивается переменной или передаётся как коллбэк — неявная привязка теряется, срабатывает default binding (window/undefined).
+
+Как решить проблему потери `this`?::1. Функция-обёртка: `() => obj.foo()`. 2. `bind`: `obj.foo.bind(obj)`. 3. Arrow function внутри метода.
+
+Чем `call` отличается от `apply`?::Оба вызывают функцию немедленно с явным `this`. `call` — аргументы через запятую. `apply` — аргументы массивом.
+
+Что делает `bind`?::Создаёт и возвращает новую функцию с жёстко привязанным `this` (и опционально — начальными аргументами). Не вызывает функцию немедленно.
+
+Можно ли изменить `this` стрелочной функции через `call`/`apply`/`bind`?::Нет. Лексическая привязка `this` стрелочной функции неизменяема. `call`, `apply`, `bind` и `new` не работают.
+
+Что происходит с `this` при `new Foo()`?::Создаётся новый пустой объект, `this` привязывается к нему. Это правило имеет наивысший приоритет среди 4 правил.
+
+Что такое call forwarding в декораторе?::Паттерн `func.apply(this, arguments)` — прозрачная передача текущего `this` и всех аргументов в оригинальную функцию. Функция «не знает», что обёрнута.
+
+Что такое partial application через `bind`?::`multiply.bind(null, 2)` — фиксирует первый аргумент (2). Возвращает функцию, принимающую только оставшиеся аргументы.
+
+Что такое Default binding и когда срабатывает?::Когда функция вызывается без объекта, без `new`, без `call`/`apply`/`bind`. В non-strict: `this = window`. В strict: `this = undefined`.
+
+---
+
+## Источники
+
+**Книга:**
+- Название: «You Don't Know JS: This & Object Prototypes»
+- Автор: Kyle Simpson
+- Серия: You Don't Know JS (YDKJS)
+- Использованные темы: 4 правила привязки this, приоритет, losing this, hard binding
+
+**Сайты / Документация:**
+- MDN Web Docs: `this`, `Function.prototype.call`, `apply`, `bind`
+- javascript.info: Методы объектов, декораторы, форвардинг вызовов, call/apply/bind
+
+---
+
+## Теги
+
+#конспект #javascript #this #call #apply #bind #context #arrow-function #losing-this #call-forwarding #partial-application

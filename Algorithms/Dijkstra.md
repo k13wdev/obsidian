@@ -1,0 +1,288 @@
+# Dijkstra
+
+## Суть и контекст
+
+Алгоритм Дейкстры (Dijkstra's Algorithm) решает задачу нахождения кратчайших путей из одного источника (single-source shortest-paths) во взвешенном ориентированном графе. Находит минимально-весовой путь от стартовой вершины до всех остальных. Ключевое ограничение: **все веса рёбер должны быть неотрицательными**. При отрицательных весах используется алгоритм Беллмана-Форда.
+
+## Ключевые идеи
+
+- Жадный алгоритм: на каждом шаге обрабатывает ближайшую необработанную вершину
+- Использует min-heap (priority queue) для выбора вершины с минимальным расстоянием
+- Операция relaxation: если путь через u короче текущего пути к v — обновить
+- Вершина добавляется в «завершённые» — её расстояние не изменится
+- Это предположение ломается при отрицательных весах
+- Сложность O((V+E) log V) с бинарным heap; O(V log V + E) с Fibonacci heap
+
+## Определения и термины
+
+**Single-Source Shortest Paths** — задача нахождения кратчайших путей от одного источника до всех остальных вершин.
+
+**d[v] (shortest-path estimate)** — текущая оценка кратчайшего расстояния до вершины v. Инициализируется ∞, кроме источника (d[source] = 0).
+
+**S (finished set)** — множество вершин, для которых кратчайший путь уже окончательно определён.
+
+**Q (priority queue)** — минимальная очередь с приоритетом, содержащая оставшиеся вершины, упорядоченные по текущей оценке расстояния d[v].
+
+**Relaxation (релаксация ребра)** — проверка: можно ли улучшить известный путь к v, пройдя через u. Если `d[v] > d[u] + w(u,v)` → обновить `d[v] = d[u] + w(u,v)`.
+
+**DECREASE-KEY** — операция обновления ключа в priority queue при нахождении более короткого пути. O(log n) в binary heap, O(1) амортизировано в Fibonacci heap.
+
+**Predecessor (предшественник)** — π[v] = u, если u предшествует v в кратчайшем пути. Позволяет восстановить сам путь.
+
+**Fibonacci Heap** — продвинутая реализация heap с амортизированным O(1) DECREASE-KEY → улучшает теоретическую сложность Dijkstra до O(V log V + E).
+
+**Bellman-Ford** — алгоритм кратчайших путей, корректно работающий с отрицательными весами рёбер. Использовать вместо Dijkstra при отрицательных весах.
+
+## Как устроено
+
+### Инициализация
+
+1. Всем вершинам: `d[v] = ∞`, `π[v] = nil`
+2. Источнику: `d[source] = 0`
+3. Priority queue Q: все вершины, упорядоченные по d[v]
+4. Finished set S: пустой
+
+### Основной цикл
+
+Повторять пока Q не пуст:
+1. **Extract-Min**: извлечь вершину u с минимальным d[u] из Q → добавить в S
+2. **Relaxation**: для каждого ребра (u, v):
+   - Если `d[v] > d[u] + w(u,v)`:
+     - `d[v] = d[u] + w(u,v)`
+     - `π[v] = u`
+     - DECREASE-KEY в Q для вершины v
+
+### Почему жадный выбор корректен
+
+После извлечения u из Q и добавления в S — `d[u]` финализировано и не изменится. Это верно потому что все веса неотрицательны: любой путь через непосещённые вершины будет длиннее или равным.
+
+### Почему не работает с отрицательными весами
+
+Если существуют отрицательные рёбра — прохождение по ним может **уменьшить** суммарную стоимость пути. Это нарушает предположение алгоритма: «раз u извлечён из Q → его расстояние финализировано». После добавления в S мы больше не пересматриваем вершину, хотя через неё потом мог появиться более короткий путь.
+
+### Временная сложность
+
+| Реализация Priority Queue | Общая сложность |
+|---------------------------|-----------------|
+| Binary Min-Heap | O((V+E) log V) |
+| Fibonacci Heap | O(V log V + E) |
+
+**С Binary Min-Heap**:
+- Build heap: O(V)
+- V Extract-Min операций: O(V log V)
+- ≤ E DECREASE-KEY операций: O(E log V)
+- Итого: O((V+E) log V) → для связных графов O(E log V)
+
+**С Fibonacci Heap**: DECREASE-KEY амортизировано O(1) → O(V log V + E). Теоретически лучше, но на практике редко используется из-за сложности реализации.
+
+### Отличие от BFS
+
+| | BFS | Dijkstra |
+|--|-----|---------|
+| Тип графа | Невзвешенный | Взвешенный (неотрицательные веса) |
+| Структура данных | FIFO Queue | Min-Heap (Priority Queue) |
+| «Ближайший» | По числу рёбер | По суммарному весу |
+| Гарантия | Кратчайший по рёбрам | Кратчайший по весу |
+
+## Детали и нюансы
+
+**Восстановление пути**: через массив predecessors `π[v]`. От целевой вершины идём назад по predecessors до источника.
+
+**Множественные Extract-Min для одной вершины**: при реализации через «ленивое удаление» (lazy deletion) в heap — одна вершина может быть добавлена несколько раз. Проверяй: `if d[u] < extracted_d: continue`.
+
+**Dijkstra для неотрицательных весов = обобщённый BFS**: BFS — частный случай Dijkstra с весами w=1 (FIFO-очередь вместо min-heap).
+
+**Отрицательные веса → Bellman-Ford**: O(VE), но корректен при отрицательных весах и обнаруживает отрицательные циклы.
+
+## Сравнения и trade-offs
+
+| Алгоритм | Граф | Сложность | Отрицательные веса |
+|----------|------|-----------|-------------------|
+| BFS | Невзвешенный | O(V+E) | N/A |
+| Dijkstra | Взвешенный ≥0 | O(E log V) | Нет |
+| Bellman-Ford | Взвешенный | O(VE) | Да |
+| Floyd-Warshall | Взвешенный (все пары) | O(V³) | Да (без отрицат. циклов) |
+
+## Примеры
+
+```go
+import "container/heap"
+
+type Edge struct {
+    To, Weight int
+}
+
+type Item struct {
+    node, dist int
+}
+
+type PriorityQueue []Item
+
+func (pq PriorityQueue) Len() int            { return len(pq) }
+func (pq PriorityQueue) Less(i, j int) bool  { return pq[i].dist < pq[j].dist }
+func (pq PriorityQueue) Swap(i, j int)       { pq[i], pq[j] = pq[j], pq[i] }
+func (pq *PriorityQueue) Push(x any)         { *pq = append(*pq, x.(Item)) }
+func (pq *PriorityQueue) Pop() any {
+    old := *pq
+    n := len(old)
+    x := old[n-1]
+    *pq = old[:n-1]
+    return x
+}
+
+// Алгоритм Дейкстры
+func dijkstra(graph map[int][]Edge, n, src int) []int {
+    dist := make([]int, n)
+    for i := range dist {
+        dist[i] = 1<<63 - 1 // infinity
+    }
+    dist[src] = 0
+
+    pq := &PriorityQueue{{src, 0}}
+    heap.Init(pq)
+
+    for pq.Len() > 0 {
+        curr := heap.Pop(pq).(Item)
+        u, d := curr.node, curr.dist
+
+        // Пропустить устаревшие записи (lazy deletion)
+        if d > dist[u] {
+            continue
+        }
+
+        // Relaxation
+        for _, edge := range graph[u] {
+            v, w := edge.To, edge.Weight
+            if dist[u]+w < dist[v] {
+                dist[v] = dist[u] + w
+                heap.Push(pq, Item{v, dist[v]})
+            }
+        }
+    }
+    return dist
+}
+
+// Восстановление пути
+func dijkstraWithPath(graph map[int][]Edge, n, src, dst int) (int, []int) {
+    dist := make([]int, n)
+    prev := make([]int, n)
+    for i := range dist {
+        dist[i] = 1<<63 - 1
+        prev[i] = -1
+    }
+    dist[src] = 0
+
+    pq := &PriorityQueue{{src, 0}}
+    heap.Init(pq)
+
+    for pq.Len() > 0 {
+        curr := heap.Pop(pq).(Item)
+        u := curr.node
+        if curr.dist > dist[u] {
+            continue
+        }
+        for _, edge := range graph[u] {
+            v, w := edge.To, edge.Weight
+            if dist[u]+w < dist[v] {
+                dist[v] = dist[u] + w
+                prev[v] = u
+                heap.Push(pq, Item{v, dist[v]})
+            }
+        }
+    }
+
+    // Восстановить путь
+    if dist[dst] == 1<<63-1 {
+        return -1, nil
+    }
+    var path []int
+    for v := dst; v != -1; v = prev[v] {
+        path = append([]int{v}, path...)
+    }
+    return dist[dst], path
+}
+
+// Пример использования
+func example() {
+    graph := map[int][]Edge{
+        0: {{1, 4}, {2, 1}},
+        1: {{3, 1}},
+        2: {{1, 2}, {3, 5}},
+        3: {},
+    }
+    dist := dijkstra(graph, 4, 0)
+    // dist[0]=0, dist[1]=3, dist[2]=1, dist[3]=4
+    _ = dist
+}
+```
+
+## Связи с другими темами
+
+- [[Heap]] — min-heap является ключевой структурой алгоритма
+- [[Graphs Introduction]] — взвешенный ориентированный граф
+- [[Graphs]] — DFS/BFS как более простые алгоритмы обхода
+- [[Topological Sort]] — для DAG кратчайший путь можно найти через топологическую сортировку за O(V+E)
+- [[Big-O Notation]] — O(E log V) vs O(V²) vs O(VE) для разных алгоритмов
+
+## Важно / подводные камни / best practices
+
+- **Никаких отрицательных весов** — при их наличии Dijkstra даёт неверный ответ
+- **Lazy deletion**: при push дубликатов в heap проверяй `if extracted_dist > dist[u]: continue`
+- Инициализируй `dist[source] = 0`, остальные — ∞
+- Для восстановления пути — храни массив predecessors `prev[v]`
+- В задачах где граф плотный (E ≈ V²) — реализация через матрицу и O(V²) поиск минимума может быть быстрее чем O(E log V) с heap
+
+---
+
+## Карточки для повторения
+
+#flashcards/algorithms/dijkstra
+
+Что решает алгоритм Дейкстры?::Single-source shortest paths во взвешенном графе с неотрицательными весами — кратчайший путь от источника до всех вершин.
+
+Ключевое ограничение Дейкстры?::Все веса рёбер должны быть неотрицательными. При отрицательных весах — использовать Bellman-Ford.
+
+Что такое relaxation в Дейкстре?::Проверка: если d[v] > d[u] + w(u,v) → обновить d[v] = d[u] + w(u,v) и π[v] = u. «Расслабить» ребро — найти более короткий путь.
+
+Шаги алгоритма Дейкстры?::1) Init: d[s]=0, остальные ∞; 2) Extract-Min из priority queue; 3) Relaxation всех рёбер из u; 4) Repeat до пустой очереди.
+
+Почему жадный выбор корректен при неотрицательных весах?::После Extract-Min вершины u её d[u] финализировано — любой путь через непосещённые вершины будет длиннее или равным (т.к. все веса ≥ 0).
+
+Почему Дейкстра не работает с отрицательными весами?::Отрицательное ребро может уменьшить стоимость после финализации вершины. Алгоритм не пересматривает «завершённые» вершины → неверный ответ.
+
+Сложность Дейкстры с binary heap?::O((V+E) log V). V Extract-Min: O(V log V). E DECREASE-KEY: O(E log V). Итого O(E log V) для связных графов.
+
+Чем Dijkstra отличается от BFS?::BFS: невзвешенный граф, FIFO-очередь, кратчайший по числу рёбер. Dijkstra: взвешенный (≥0), min-heap, кратчайший по суммарному весу.
+
+Как восстановить путь в Дейкстре?::Массив predecessors prev[v]. При relaxation: prev[v] = u. От цели идти назад по prev до источника.
+
+---
+
+## Источники
+
+**Книга:**
+- Название: Grokking Algorithms
+- Автор: Aditya Bhargava (Адитья Бхаргава)
+- Год: 2016 (оригинал, Manning Publications Co.) / 2017 (русское издание, «Питер»)
+- ISBN: 978-1-617292231 (EN) / 978-5-496-02541-6 (RU)
+- Переводчик (RU): Е. Матвеев
+
+**Книга:**
+- Название: Cracking the Coding Interview (6th Edition)
+- Автор: Gayle Laakmann McDowell
+- Год: 2015 (copyright), 2016 (компиляция)
+- Издатель: CareerCup, LLC (Palo Alto, CA)
+- ISBN: 978-0-9847828-5-7
+
+**Книга:**
+- Название: Introduction to Algorithms (3rd Edition) — CLRS
+- Авторы: Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein
+- Год: 2009
+- Издатель: The MIT Press (Cambridge, Massachusetts / London, England)
+- ISBN: 978-0-262-03384-8 (hardcover) / 978-0-262-53305-8 (paperback)
+
+---
+
+## Теги
+
+#конспект #algorithms #dijkstra #graphs #shortest-path #priority-queue #interview-prep

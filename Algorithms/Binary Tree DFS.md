@@ -1,0 +1,304 @@
+# Binary Tree DFS
+
+## Суть и контекст
+
+DFS (Depth-First Search) на бинарном дереве — обход, при котором алгоритм уходит как можно глубже по каждой ветке перед тем, как перейти к следующей. Pre-order, in-order и post-order — три формы DFS, отличающиеся **моментом обработки текущего узла** относительно его поддеревьев.
+
+## Ключевые идеи
+
+- Три типа DFS: pre-order (текущий → лево → право), in-order (лево → текущий → право), post-order (лево → право → текущий)
+- In-order на BST даёт узлы в отсортированном порядке
+- Pre-order — корень всегда первый, уникально идентифицирует структуру дерева
+- Post-order — корень всегда последний, дети обрабатываются до родителя
+- Рекурсия — самая естественная реализация; итеративная — через явный стек
+- Временная сложность O(n), пространственная O(h), где h — высота дерева
+
+## Определения и термины
+
+**DFS (Depth-First Search)** — обход в глубину: сначала уходим максимально глубоко по одной ветке, затем backtrack и переходим к следующей.
+
+**In-order (Левый, Текущий, Правый)** — LNR. На BST даёт узлы в ascending отсортированном порядке.
+
+**Pre-order (Текущий, Левый, Правый)** — NLR. Корень всегда первым. Pre-order строка с NULL placeholder-ами уникально идентифицирует структуру дерева.
+
+**Post-order (Левый, Правый, Текущий)** — LRN. Корень всегда последним. Дети обрабатываются до родителя.
+
+**Balanced tree (сбалансированное дерево)** — высота O(log n).
+
+**Unbalanced tree** — может деградировать до O(n) высоты (прямая линия).
+
+## Как устроено
+
+### Порядок обхода
+
+```
+       1
+      / \
+     2   3
+    / \
+   4   5
+
+Pre-order  (NLR): 1 → 2 → 4 → 5 → 3
+In-order   (LNR): 4 → 2 → 5 → 1 → 3
+Post-order (LRN): 4 → 5 → 2 → 3 → 1
+```
+
+### Рекурсивная реализация
+
+Рекурсивный алгоритм пишется натурально:
+- In-order: вызов для левого → обработка узла → вызов для правого
+- Pre-order: обработка узла → вызов для левого → вызов для правого
+- Post-order: вызов для левого → вызов для правого → обработка узла
+
+### Итеративная реализация
+
+Любой рекурсивный алгоритм можно реализовать итеративно через явный стек (LIFO), имитирующий системный стек вызовов. Стек паузирует и возобновляет состояние при backtrack по дереву.
+
+### Когда использовать каждый обход
+
+| Обход | Когда применять |
+|-------|----------------|
+| In-order | Развернуть BST в отсортированный массив; конвертировать BST в двусвязный список |
+| Pre-order | Сначала инспектировать корень; дублировать дерево; проверить подстроку структуры дерева через pre-order строку |
+| Post-order | Обработать дочерние узлы до родителя; безопасное удаление дерева; вычисление свойств снизу вверх (высота) |
+
+## Детали и нюансы
+
+**Пространственная сложность через стек**: O(h), где h — высота дерева. Каждый рекурсивный вызов или push в стек добавляет уровень в память. Сбалансированное → O(log n). Несбалансированное (прямая линия) → O(n).
+
+**Pre-order строка для идентификации дерева**: включая NULL placeholder-узлы в pre-order обход, получается строка, уникально идентифицирующая и структуру, и значения дерева. Применяется для проверки является ли одно дерево поддеревом другого.
+
+**Paths with Sum через runningSum + HashMap**:
+- DFS отслеживает `runningSum` в каждом узле
+- В HashMap хранятся все предыдущие `runningSum`
+- В текущем узле ищем `runningSum - targetSum` в HashMap
+- Если найдено — нашли путь с нужной суммой
+- Оптимизирует brute-force O(n log n) до O(n) времени и O(log n) памяти
+
+**Tree Height через post-order**:
+```
+height(node) = max(height(left), height(right)) + 1
+```
+Используется для проверки балансировки дерева.
+
+**Tree Diameter**: наибольшее из всех кратчайших расстояний между любыми двумя узлами. Вычисляется через post-order DFS: для каждого узла суммируются высоты левого и правого поддеревьев, обновляется глобальный максимум.
+
+## Сравнения и trade-offs
+
+| | DFS | BFS |
+|--|-----|-----|
+| Реализация | Рекурсия (стек) | Итеративно (очередь) |
+| Память (balanced) | O(log n) | O(n/2) ≈ O(n) |
+| Кратчайший путь | Нет | Да |
+| Применение | Обход всех узлов, дерево как структура | Уровневый обход, ближайший узел |
+| Простота реализации | Проще (рекурсия) | Чуть сложнее |
+
+## Примеры
+
+```go
+type TreeNode struct {
+    Val   int
+    Left  *TreeNode
+    Right *TreeNode
+}
+
+// In-order: рекурсивный
+func inorder(root *TreeNode, result *[]int) {
+    if root == nil {
+        return
+    }
+    inorder(root.Left, result)
+    *result = append(*result, root.Val)
+    inorder(root.Right, result)
+}
+
+// Pre-order: рекурсивный
+func preorder(root *TreeNode, result *[]int) {
+    if root == nil {
+        return
+    }
+    *result = append(*result, root.Val)
+    preorder(root.Left, result)
+    preorder(root.Right, result)
+}
+
+// Post-order: рекурсивный
+func postorder(root *TreeNode, result *[]int) {
+    if root == nil {
+        return
+    }
+    postorder(root.Left, result)
+    postorder(root.Right, result)
+    *result = append(*result, root.Val)
+}
+
+// In-order: итеративный через стек
+func inorderIterative(root *TreeNode) []int {
+    var result []int
+    var stack []*TreeNode
+    curr := root
+    for curr != nil || len(stack) > 0 {
+        for curr != nil {
+            stack = append(stack, curr)
+            curr = curr.Left
+        }
+        curr = stack[len(stack)-1]
+        stack = stack[:len(stack)-1]
+        result = append(result, curr.Val)
+        curr = curr.Right
+    }
+    return result
+}
+
+// Высота дерева (post-order)
+func height(root *TreeNode) int {
+    if root == nil {
+        return 0
+    }
+    leftH := height(root.Left)
+    rightH := height(root.Right)
+    if leftH > rightH {
+        return leftH + 1
+    }
+    return rightH + 1
+}
+
+// Проверка балансировки
+func isBalanced(root *TreeNode) bool {
+    var check func(*TreeNode) int
+    check = func(node *TreeNode) int {
+        if node == nil {
+            return 0
+        }
+        left := check(node.Left)
+        if left == -1 {
+            return -1
+        }
+        right := check(node.Right)
+        if right == -1 {
+            return -1
+        }
+        diff := left - right
+        if diff < -1 || diff > 1 {
+            return -1
+        }
+        if left > right {
+            return left + 1
+        }
+        return right + 1
+    }
+    return check(root) != -1
+}
+
+// Paths with Sum — O(n) через runningSum + HashMap
+func pathSum(root *TreeNode, targetSum int) int {
+    count := 0
+    prefixSums := map[int]int{0: 1}
+    var dfs func(*TreeNode, int)
+    dfs = func(node *TreeNode, runningSum int) {
+        if node == nil {
+            return
+        }
+        runningSum += node.Val
+        count += prefixSums[runningSum-targetSum]
+        prefixSums[runningSum]++
+        dfs(node.Left, runningSum)
+        dfs(node.Right, runningSum)
+        prefixSums[runningSum]--
+    }
+    dfs(root, 0)
+    return count
+}
+
+// Диаметр дерева
+func diameterOfBinaryTree(root *TreeNode) int {
+    maxDiam := 0
+    var dfs func(*TreeNode) int
+    dfs = func(node *TreeNode) int {
+        if node == nil {
+            return 0
+        }
+        left := dfs(node.Left)
+        right := dfs(node.Right)
+        if left+right > maxDiam {
+            maxDiam = left + right
+        }
+        if left > right {
+            return left + 1
+        }
+        return right + 1
+    }
+    dfs(root)
+    return maxDiam
+}
+```
+
+## Связи с другими темами
+
+- [[Binary Tree BFS]] — альтернативный обход: в ширину, используется очередь
+- [[Binary Search Tree]] — in-order даёт отсортированный вывод BST
+- [[Stack]] — итеративный DFS использует явный стек
+- [[Backtracking]] — структурно близок к DFS: рекурсия + backtrack
+- [[HashMap]] — используется в задаче pathSum для хранения prefix sums
+
+## Важно / подводные камни / best practices
+
+- Базовый случай: `if root == nil { return }` — всегда первая проверка
+- Пространственная сложность O(h) — в несбалансированном дереве может быть O(n) → риск stack overflow
+- Задача pathSum: уменьшай счётчик при backtrack (`prefixSums[runningSum]--`) — иначе пути из других ветвей будут засчитаны ошибочно
+- Pre-order строка для сравнения деревьев работает только при включении NULL placeholder-ов
+
+---
+
+## Карточки для повторения
+
+#flashcards/algorithms/binary-tree-dfs
+
+Три типа DFS обхода и их порядок?::Pre-order: Узел→Лево→Право (NLR). In-order: Лево→Узел→Право (LNR). Post-order: Лево→Право→Узел (LRN).
+
+Что даёт in-order обход BST?::Узлы в ascending отсортированном порядке.
+
+Когда использовать pre-order?::Когда нужно инспектировать корень первым: дублирование дерева, уникальная идентификация структуры через pre-order строку, проверка subtree.
+
+Когда использовать post-order?::Когда нужно обработать дочерние узлы до родителя: безопасное удаление, вычисление высоты, диаметра дерева.
+
+Временная и пространственная сложность DFS?::O(n) время — каждый узел посещается ровно один раз. O(h) память — стек рекурсии глубиной h. Balanced: O(log n). Unbalanced: O(n).
+
+Как реализовать iterative in-order?::Явный стек. Идём влево, пушим узлы. Pop — обработка, уходим вправо. Повторяем.
+
+Формула высоты дерева (post-order)?::`height(node) = max(height(left), height(right)) + 1`. Base case: `height(nil) = 0`.
+
+Как найти paths with sum за O(n)?::DFS + runningSum + HashMap с prefix sums. В каждом узле проверяем `prefixSums[runningSum - targetSum]`. При backtrack уменьшаем счётчик.
+
+Как вычислить диаметр дерева?::Post-order DFS. В каждом узле: `diameter = left_height + right_height`. Обновляем глобальный максимум. Возвращаем `max(left, right) + 1`.
+
+---
+
+## Источники
+
+**Книга:**
+- Название: Grokking Algorithms
+- Автор: Aditya Bhargava (Адитья Бхаргава)
+- Год: 2016 (оригинал, Manning Publications Co.) / 2017 (русское издание, «Питер»)
+- ISBN: 978-1-617292231 (EN) / 978-5-496-02541-6 (RU)
+- Переводчик (RU): Е. Матвеев
+
+**Книга:**
+- Название: Cracking the Coding Interview (6th Edition)
+- Автор: Gayle Laakmann McDowell
+- Год: 2015 (copyright), 2016 (компиляция)
+- Издатель: CareerCup, LLC (Palo Alto, CA)
+- ISBN: 978-0-9847828-5-7
+
+**Книга:**
+- Название: Introduction to Algorithms (3rd Edition) — CLRS
+- Авторы: Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein
+- Год: 2009
+- Издатель: The MIT Press (Cambridge, Massachusetts / London, England)
+- ISBN: 978-0-262-03384-8 (hardcover) / 978-0-262-53305-8 (paperback)
+
+---
+
+## Теги
+
+#конспект #algorithms #binary-tree #dfs #tree-traversal #interview-prep

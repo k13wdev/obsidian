@@ -1,0 +1,298 @@
+# Graphs Introduction
+
+## Суть и контекст
+
+Граф (Graph) — структура данных для моделирования множества связей или отношений между объектами. Состоит из вершин (vertices/nodes) и рёбер (edges). Один из наиболее универсальных способов представления реального мира: сети, маршруты, зависимости, социальные связи. Дерево — частный случай графа.
+
+## Ключевые идеи
+
+- Граф = вершины + рёбра (узлы + связи между ними)
+- Directed vs Undirected: рёбра односторонние или двусторонние
+- Weighted vs Unweighted: рёбра имеют числовой вес или нет
+- Два способа представления: Adjacency List (списки смежности) и Adjacency Matrix
+- Дерево — граф без циклов и связный
+- Connected Component — подграф, в котором есть путь между каждой парой вершин
+
+## Определения и термины
+
+**Graph (граф)** — пара (V, E): множество вершин V и множество рёбер E (связей между вершинами).
+
+**Vertex / Node (вершина / узел)** — отдельный объект или сущность в графе.
+
+**Edge (ребро)** — связь между двумя вершинами.
+
+**Directed Graph (ориентированный граф, орграф)** — рёбра однонаправленные (как улицы с односторонним движением). Ребро (A→B): путь из A в B, но не обязательно из B в A.
+
+**Undirected Graph (неориентированный граф)** — рёбра двунаправленные. Если A связан с B, то B равно связан с A.
+
+**Weighted Graph (взвешенный граф)** — рёбра имеют числовой вес/стоимость (расстояние, время, toll).
+
+**Unweighted Graph (невзвешенный граф)** — рёбра без весов, все равнозначны.
+
+**Degree (степень вершины)** — число рёбер, инцидентных вершине.
+
+**In-degree (входящая степень)** — число рёбер, **входящих** в вершину (в орграфе).
+
+**Out-degree (исходящая степень)** — число рёбер, **выходящих** из вершины (в орграфе).
+
+**Adjacency List (список смежности)** — каждая вершина хранит список своих соседей. Θ(V+E) памяти.
+
+**Adjacency Matrix (матрица смежности)** — матрица V×V: element[i][j] = 1/true если есть ребро из i в j. Θ(V²) памяти.
+
+**Connected Graph (связный граф)** — есть путь между каждой парой вершин.
+
+**Connected Component (связная компонента)** — максимальный связный подграф (изолированная «острова»).
+
+**Strongly Connected Component (SCC)** — в орграфе: максимальное подмножество вершин, где каждая пара взаимно достижима (есть путь u→v и v→u).
+
+**Sparse Graph (разреженный граф)** — E << V². Adjacency List предпочтительнее.
+
+**Dense Graph (плотный граф)** — E ≈ V². Adjacency Matrix предпочтительнее.
+
+**DAG (Directed Acyclic Graph)** — ориентированный граф без циклов.
+
+## Как устроено
+
+### Directed vs Undirected
+
+**Directed**: рёбра как стрелки. Ребро A→B означает: можно перейти из A в B, но не из B в A (если нет обратного ребра B→A).
+
+**Undirected**: рёбра двусторонние. Если A связан с B → B равно связан с A.
+
+### Weighted vs Unweighted
+
+**Weighted**: каждое ребро имеет вес (число). Алгоритм Dijkstra находит кратчайший путь во взвешенном графе.
+
+**Unweighted**: все рёбра равнозначны. BFS находит кратчайший путь по числу рёбер.
+
+### Adjacency List vs Adjacency Matrix
+
+**Adjacency List**:
+- Каждая вершина хранит список смежных вершин
+- Память: Θ(V+E) — компактно для разреженных графов
+- Недостаток: проверка наличия конкретного ребра — O(deg(v)), поиск по списку
+- Предпочтителен для разреженных графов (E << V²)
+
+**Adjacency Matrix**:
+- V×V матрица булевых/числовых значений (для взвешенных)
+- Память: Θ(V²) — независимо от числа рёбер
+- Преимущество: проверка наличия ребра (i,j) — O(1)
+- Предпочтителен для плотных графов или когда нужна O(1) проверка ребра
+- Для невзвешенных: оптимизация до 1 бита на запись
+
+### Степени вершин (Degree)
+
+**Неориентированный граф**: степень = число рёбер, связанных с вершиной.
+
+**Ориентированный граф**:
+- In-degree = число входящих рёбер
+- Out-degree = число исходящих рёбер
+
+### Connected Components
+
+Граф может состоять из нескольких изолированных подграфов. Каждый из них — связная компонента. В ориентированном графе — Strongly Connected Components (SCC): максимальные подмножества с взаимной достижимостью каждой пары.
+
+### Деревья как графы
+
+Дерево — частный случай графа: **связный граф без циклов**. В ориентированном контексте все рёбра строго направлены вниз, нет обратных стрелок (нет циклов). Каждое дерево — граф, но не каждый граф — дерево.
+
+## Детали и нюансы
+
+**Sparse vs Dense**: при выборе представления — ключевой вопрос. Если E << V² — Adjacency List. Если E ≈ V² — Matrix может быть компактнее (1 бит на ребро против объекта-ссылки).
+
+**Матрица смежности и битовые операции**: для невзвешенных неориентированных графов матрица симметрична и может быть оптимизирована до битовой — 1 бит на ребро.
+
+**SCC в орграфе**: алгоритм Косарайю — два прохода DFS: первый по исходному графу (фиксируем время завершения), второй по транспонированному (рёбра перевёрнуты) в порядке убывания времени завершения.
+
+## Сравнения и trade-offs
+
+| | Adjacency List | Adjacency Matrix |
+|--|----------------|------------------|
+| Память | Θ(V+E) | Θ(V²) |
+| Проверка ребра (u,v) | O(deg(u)) | O(1) |
+| Обход всех соседей u | O(deg(u)) | O(V) |
+| Подходит для | Sparse графы | Dense графы, O(1) проверка |
+
+| | Directed | Undirected |
+|--|----------|------------|
+| Рёбра | Однонаправленные | Двунаправленные |
+| Degree | In-degree + Out-degree | Единая степень |
+| Symmetric matrix | Нет | Да |
+
+## Примеры
+
+```go
+// Adjacency List — неориентированный граф
+type Graph struct {
+    vertices int
+    adjList  map[int][]int
+}
+
+func NewGraph(v int) *Graph {
+    return &Graph{
+        vertices: v,
+        adjList:  make(map[int][]int),
+    }
+}
+
+func (g *Graph) AddEdge(u, v int) {
+    g.adjList[u] = append(g.adjList[u], v)
+    g.adjList[v] = append(g.adjList[v], u) // для неориентированного
+}
+
+func (g *Graph) Neighbors(u int) []int {
+    return g.adjList[u]
+}
+
+// Adjacency List — ориентированный граф
+type DiGraph struct {
+    adjList map[int][]int
+}
+
+func NewDiGraph() *DiGraph {
+    return &DiGraph{adjList: make(map[int][]int)}
+}
+
+func (g *DiGraph) AddEdge(from, to int) {
+    g.adjList[from] = append(g.adjList[from], to)
+}
+
+// Adjacency Matrix
+type MatrixGraph struct {
+    matrix [][]int
+    v      int
+}
+
+func NewMatrixGraph(v int) *MatrixGraph {
+    matrix := make([][]int, v)
+    for i := range matrix {
+        matrix[i] = make([]int, v)
+    }
+    return &MatrixGraph{matrix: matrix, v: v}
+}
+
+func (g *MatrixGraph) AddEdge(u, v int) {
+    g.matrix[u][v] = 1
+    g.matrix[v][u] = 1 // для неориентированного
+}
+
+func (g *MatrixGraph) HasEdge(u, v int) bool {
+    return g.matrix[u][v] == 1
+}
+
+// Взвешенный граф через Adjacency List
+type WeightedEdge struct {
+    To, Weight int
+}
+
+type WeightedGraph struct {
+    adjList map[int][]WeightedEdge
+}
+
+func NewWeightedGraph() *WeightedGraph {
+    return &WeightedGraph{adjList: make(map[int][]WeightedEdge)}
+}
+
+func (g *WeightedGraph) AddEdge(from, to, weight int) {
+    g.adjList[from] = append(g.adjList[from], WeightedEdge{to, weight})
+}
+
+// Подсчёт связных компонент через DFS
+func countComponents(n int, edges [][]int) int {
+    adj := make(map[int][]int)
+    for _, e := range edges {
+        adj[e[0]] = append(adj[e[0]], e[1])
+        adj[e[1]] = append(adj[e[1]], e[0])
+    }
+    visited := make(map[int]bool)
+    count := 0
+    var dfs func(v int)
+    dfs = func(v int) {
+        visited[v] = true
+        for _, neighbor := range adj[v] {
+            if !visited[neighbor] {
+                dfs(neighbor)
+            }
+        }
+    }
+    for v := 0; v < n; v++ {
+        if !visited[v] {
+            dfs(v)
+            count++
+        }
+    }
+    return count
+}
+```
+
+## Связи с другими темами
+
+- [[Graphs]] — алгоритмы DFS и BFS на графах
+- [[Dijkstra]] — кратчайший путь во взвешенном орграфе
+- [[Topological Sort]] — порядок вершин в DAG
+- [[Binary Tree DFS]] — дерево как частный случай графа
+- [[Binary Search Tree]] — BST — частный случай ориентированного дерева
+
+## Важно / подводные камни / best practices
+
+- Выбор представления: Adjacency List для большинства задач (E << V²)
+- В орграфе всегда уточняй — нужны ли In-degree и Out-degree отдельно
+- Граф ≠ дерево: граф может иметь циклы, несвязные компоненты, несколько рёбер между вершинами
+- При реализации через Map — не забудь инициализировать `adjList[v]` для каждой вершины, иначе обход соседей вернёт nil
+
+---
+
+## Карточки для повторения
+
+#flashcards/algorithms/graphs-intro
+
+Что такое граф?::Структура данных: множество вершин (vertices/nodes) и рёбер (edges) между ними. Используется для моделирования связей и отношений.
+
+Directed vs Undirected граф?::Directed: рёбра однонаправленные (A→B, но не B→A). Undirected: рёбра двусторонние — если A связан с B, то B связан с A.
+
+Weighted vs Unweighted?::Weighted: рёбра имеют числовой вес (расстояние, стоимость). Dijkstra. Unweighted: все рёбра равнозначны. BFS для кратчайшего пути.
+
+Adjacency List vs Matrix — memory?::List: Θ(V+E) — компактно для sparse. Matrix: Θ(V²) — независимо от числа рёбер.
+
+Adjacency List vs Matrix — проверка ребра?::List: O(deg(v)) — поиск по списку соседей. Matrix: O(1) — прямое обращение по индексам.
+
+Когда использовать Adjacency List vs Matrix?::List: sparse граф (E << V²). Matrix: dense граф или нужна O(1) проверка наличия ребра.
+
+Что такое Connected Component?::Максимальный связный подграф, в котором есть путь между каждой парой вершин.
+
+Чем дерево отличается от графа?::Дерево — частный случай графа: связный граф без циклов. Каждое дерево — граф, но не каждый граф — дерево.
+
+Что такое DAG?::Directed Acyclic Graph — ориентированный граф без циклов. Основа для Topological Sort.
+
+In-degree и Out-degree?::In-degree — число входящих рёбер в вершину. Out-degree — число исходящих рёбер. Только для directed графов.
+
+---
+
+## Источники
+
+**Книга:**
+- Название: Grokking Algorithms
+- Автор: Aditya Bhargava (Адитья Бхаргава)
+- Год: 2016 (оригинал, Manning Publications Co.) / 2017 (русское издание, «Питер»)
+- ISBN: 978-1-617292231 (EN) / 978-5-496-02541-6 (RU)
+- Переводчик (RU): Е. Матвеев
+
+**Книга:**
+- Название: Cracking the Coding Interview (6th Edition)
+- Автор: Gayle Laakmann McDowell
+- Год: 2015 (copyright), 2016 (компиляция)
+- Издатель: CareerCup, LLC (Palo Alto, CA)
+- ISBN: 978-0-9847828-5-7
+
+**Книга:**
+- Название: Introduction to Algorithms (3rd Edition) — CLRS
+- Авторы: Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein
+- Год: 2009
+- Издатель: The MIT Press (Cambridge, Massachusetts / London, England)
+- ISBN: 978-0-262-03384-8 (hardcover) / 978-0-262-53305-8 (paperback)
+
+---
+
+## Теги
+
+#конспект #algorithms #graphs #data-structures #adjacency-list #adjacency-matrix #interview-prep

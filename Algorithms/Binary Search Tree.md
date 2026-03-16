@@ -1,0 +1,283 @@
+# Binary Search Tree
+
+## Суть и контекст
+
+BST (Binary Search Tree, бинарное дерево поиска) — бинарное дерево с ключевым инвариантом: для каждого узла **все ключи в левом поддереве ≤ ключ узла**, **все ключи в правом поддереве ≥ ключ узла**. Свойство применяется рекурсивно ко всем потомкам, а не только к непосредственным детям. Обеспечивает O(log n) поиск, вставку и удаление в сбалансированном состоянии.
+
+## Ключевые идеи
+
+- BST-свойство: левое поддерево ≤ узел ≤ правое поддерево (рекурсивно)
+- In-order обход даёт узлы в ascending отсортированном порядке
+- Сложность операций зависит от высоты: O(log n) для сбалансированного, O(n) для вырожденного
+- Вставка в порядке возрастания/убывания → BST деградирует в связный список
+- Самобалансирующиеся деревья (AVL, Red-Black) гарантируют O(log n)
+- Удаление — три случая в зависимости от числа дочерних узлов
+
+## Определения и термины
+
+**BST Property (инвариант BST)** — для любого узла: все ключи в левом поддереве ≤ ключ, все ключи в правом поддереве ≥ ключ. Применяется рекурсивно.
+
+**In-order traversal** — обход Лево→Узел→Право. На BST даёт узлы в отсортированном порядке.
+
+**In-order successor (in-order преемник)** — наименьший ключ в правом поддереве узла. Используется при удалении узла с двумя детьми.
+
+**Balanced tree (сбалансированное дерево)** — высота O(log n). Половина оставшихся узлов отсекается на каждом шаге ветвления.
+
+**Unbalanced tree** — при вставке элементов в отсортированном порядке дерево деградирует в прямую линию, высота = n.
+
+**Self-balancing tree (самобалансирующееся дерево)** — автоматически поддерживает баланс через ротации при вставке и удалении.
+
+**Rotation (ротация)** — локальная перестановка указателей для восстановления баланса. O(1).
+
+**AVL Tree** — строго height-balanced: для любого узла разница высот левого и правого поддеревьев ≤ 1.
+
+**Red-Black Tree** — каждый узел имеет атрибут «цвет» (красный или чёрный). Правила: корень чёрный; красный узел не может иметь красного ребёнка; любой путь до листа содержит одинаковое число чёрных узлов. Ни один путь не может быть длиннее другого более чем в 2 раза.
+
+## Как устроено
+
+### Операции
+
+**Search (поиск)**:
+1. Начинаем с корня
+2. Если target < текущий → идём в левое поддерево
+3. Если target > текущий → идём в правое поддерево
+4. Повторяем до нахождения или NULL
+
+**Insert (вставка)**:
+1. Спускаемся вниз как при поиске, выбирая лево/право
+2. Находим NULL-позицию листа
+3. Заменяем NULL новым узлом
+
+**Delete (удаление)** — три случая:
+1. **Лист (нет детей)**: просто удалить
+2. **Один ребёнок**: поднять ребёнка на место удаляемого узла
+3. **Два ребёнка**: найти in-order successor (наименьший в правом поддереве) → он заменяет удаляемый узел → original successor вырезается из дерева
+
+### Временная сложность
+
+| Операция | Balanced | Unbalanced |
+|----------|----------|------------|
+| Search | O(log n) | O(n) |
+| Insert | O(log n) | O(n) |
+| Delete | O(log n) | O(n) |
+| In-order traversal | O(n) | O(n) |
+
+Сложность прямо пропорциональна высоте дерева.
+
+### Самобалансирующиеся деревья
+
+**AVL Trees**: строгая балансировка. Разница высот поддеревьев для любого узла ≤ 1. Ротации при вставке/удалении восстанавливают баланс.
+
+**Red-Black Trees**: менее строгая балансировка. Правила цвета гарантируют, что ни один путь не длиннее другого более чем в 2 раза. Требуют меньше ротаций, чем AVL → предпочтительнее при частых модификациях.
+
+### Конвертация BST
+
+**В отсортированный массив**: in-order обход + append каждого узла → O(n).
+
+**В двусвязный список** (in-place):
+- Перепользуем `left` как `prev`, `right` как `next`
+- Рекурсивно конвертируем левое и правое поддеревья в двусвязные списки
+- Связываем голову и хвост этих списков с текущим узлом
+
+## Детали и нюансы
+
+**Вырождение при сортированных вставках**: вставка 1, 2, 3, 4, 5 создаёт прямую правую ветвь — BST становится связным списком. Все операции деградируют до O(n).
+
+**In-order successor**: наименьший ключ в правом поддереве = самый левый узел правого поддерева.
+
+**Red-Black vs AVL**: Red-Black предпочтительнее при частых вставках/удалениях (меньше ротаций). AVL быстрее для поиска (строже сбалансирован).
+
+## Сравнения и trade-offs
+
+| | BST | AVL | Red-Black |
+|--|-----|-----|-----------|
+| Search | O(h) | O(log n) | O(log n) |
+| Insert | O(h) | O(log n) | O(log n) |
+| Balance | Нет гарантий | Строгий | Менее строгий |
+| Ротации при insert | 0 | До 2 | До 2 |
+| Подходит для | Статичные данные | Много чтений | Много записей |
+
+## Примеры
+
+```go
+type TreeNode struct {
+    Val   int
+    Left  *TreeNode
+    Right *TreeNode
+}
+
+// Поиск в BST
+func searchBST(root *TreeNode, val int) *TreeNode {
+    if root == nil || root.Val == val {
+        return root
+    }
+    if val < root.Val {
+        return searchBST(root.Left, val)
+    }
+    return searchBST(root.Right, val)
+}
+
+// Вставка в BST
+func insertBST(root *TreeNode, val int) *TreeNode {
+    if root == nil {
+        return &TreeNode{Val: val}
+    }
+    if val < root.Val {
+        root.Left = insertBST(root.Left, val)
+    } else if val > root.Val {
+        root.Right = insertBST(root.Right, val)
+    }
+    return root
+}
+
+// Нахождение минимума (in-order successor helper)
+func findMin(root *TreeNode) *TreeNode {
+    for root.Left != nil {
+        root = root.Left
+    }
+    return root
+}
+
+// Удаление из BST
+func deleteBST(root *TreeNode, val int) *TreeNode {
+    if root == nil {
+        return nil
+    }
+    if val < root.Val {
+        root.Left = deleteBST(root.Left, val)
+    } else if val > root.Val {
+        root.Right = deleteBST(root.Right, val)
+    } else {
+        // Нашли узел
+        if root.Left == nil {
+            return root.Right // случай 1 и 2
+        }
+        if root.Right == nil {
+            return root.Left // случай 2
+        }
+        // Случай 3: два ребёнка — найти in-order successor
+        successor := findMin(root.Right)
+        root.Val = successor.Val
+        root.Right = deleteBST(root.Right, successor.Val)
+    }
+    return root
+}
+
+// In-order traversal → отсортированный массив
+func inorderSorted(root *TreeNode) []int {
+    var result []int
+    var dfs func(*TreeNode)
+    dfs = func(node *TreeNode) {
+        if node == nil {
+            return
+        }
+        dfs(node.Left)
+        result = append(result, node.Val)
+        dfs(node.Right)
+    }
+    dfs(root)
+    return result
+}
+
+// Проверка валидности BST
+func isValidBST(root *TreeNode) bool {
+    var validate func(*TreeNode, int, int) bool
+    validate = func(node *TreeNode, min, max int) bool {
+        if node == nil {
+            return true
+        }
+        if node.Val <= min || node.Val >= max {
+            return false
+        }
+        return validate(node.Left, min, node.Val) &&
+            validate(node.Right, node.Val, max)
+    }
+    return validate(root, -1<<63, 1<<63-1)
+}
+
+// k-й наименьший элемент через in-order
+func kthSmallest(root *TreeNode, k int) int {
+    count, result := 0, 0
+    var dfs func(*TreeNode)
+    dfs = func(node *TreeNode) {
+        if node == nil {
+            return
+        }
+        dfs(node.Left)
+        count++
+        if count == k {
+            result = node.Val
+            return
+        }
+        dfs(node.Right)
+    }
+    dfs(root)
+    return result
+}
+```
+
+## Связи с другими темами
+
+- [[Binary Tree DFS]] — in-order, pre-order, post-order обходы применяются на BST
+- [[Binary Tree BFS]] — level-order обход работает и на BST
+- [[Big-O Notation]] — сложность O(log n) vs O(n) зависит от балансировки
+
+## Важно / подводные камни / best practices
+
+- Всегда проверяй BST на вырождение — в боевых системах используй AVL или Red-Black
+- Удаление с двумя детьми: in-order successor — самый левый узел правого поддерева
+- Проверка валидности BST: недостаточно сравнивать только с непосредственными детьми — нужны границы min/max для каждого поддерева
+- Red-Black предпочтительнее AVL при частых записях; AVL — при частых чтениях
+
+---
+
+## Карточки для повторения
+
+#flashcards/algorithms/binary-search-tree
+
+Инвариант BST?::Для любого узла: все ключи в левом поддереве ≤ ключ узла, все ключи в правом поддереве ≥ ключ узла. Применяется рекурсивно ко всем потомкам.
+
+Что даёт in-order обход BST?::Узлы в ascending отсортированном порядке — именно потому что левые ≤ текущий ≤ правые.
+
+Три случая удаления из BST?::1) Лист — просто удалить; 2) Один ребёнок — поднять ребёнка; 3) Два ребёнка — заменить in-order successor (наименьший в правом поддереве).
+
+Почему BST может деградировать до O(n)?::При вставке элементов в отсортированном порядке дерево вырождается в прямую линию (связный список). Высота = n, все операции O(n).
+
+Разница AVL и Red-Black?::AVL — строгий баланс (разница высот ≤ 1), быстрый поиск. Red-Black — менее строгий баланс, меньше ротаций, предпочтительнее при частых вставках/удалениях.
+
+Как найти in-order successor?::Самый левый узел правого поддерева — идём вправо один шаг, затем до упора влево.
+
+Как проверить валидность BST?::Рекурсия с передачей границ (min, max) для каждого поддерева. Только левые дети: node.Val < max. Только правые: node.Val > min.
+
+Сложность операций BST?::Balanced O(log n), Unbalanced O(n) — прямо пропорционально высоте дерева.
+
+---
+
+## Источники
+
+**Книга:**
+- Название: Grokking Algorithms
+- Автор: Aditya Bhargava (Адитья Бхаргава)
+- Год: 2016 (оригинал, Manning Publications Co.) / 2017 (русское издание, «Питер»)
+- ISBN: 978-1-617292231 (EN) / 978-5-496-02541-6 (RU)
+- Переводчик (RU): Е. Матвеев
+
+**Книга:**
+- Название: Cracking the Coding Interview (6th Edition)
+- Автор: Gayle Laakmann McDowell
+- Год: 2015 (copyright), 2016 (компиляция)
+- Издатель: CareerCup, LLC (Palo Alto, CA)
+- ISBN: 978-0-9847828-5-7
+
+**Книга:**
+- Название: Introduction to Algorithms (3rd Edition) — CLRS
+- Авторы: Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein
+- Год: 2009
+- Издатель: The MIT Press (Cambridge, Massachusetts / London, England)
+- ISBN: 978-0-262-03384-8 (hardcover) / 978-0-262-53305-8 (paperback)
+
+---
+
+## Теги
+
+#конспект #algorithms #binary-search-tree #bst #tree #avl #red-black #interview-prep

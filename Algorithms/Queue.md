@@ -1,0 +1,285 @@
+# Queue
+
+## Суть и контекст
+
+Queue (очередь) — структура данных, работающая строго по принципу FIFO (First-In, First-Out): элементы удаляются в том же порядке, в котором добавлялись. Аналог — очередь людей на автобусной остановке. Является фундаментальной структурой для BFS (обход в ширину) в графах и деревьях.
+
+## Ключевые идеи
+
+- FIFO: первый вошёл — первый вышел
+- Все базовые операции — O(1)
+- Реализуется через связный список (с указателями head и tail) или циклический массив
+- Ключевая структура для BFS — узлы обрабатываются уровень за уровнем
+- Deque расширяет очередь: вставка и удаление с обоих концов
+
+## Определения и термины
+
+**FIFO (First-In, First-Out)** — принцип работы очереди: первый добавленный элемент извлекается первым.
+
+**Head (голова)** — указатель на первый элемент (удаляется отсюда).
+
+**Tail (хвост)** — указатель на последний элемент (добавляется сюда).
+
+**Circular Queue (кольцевая очередь)** — массив-реализация, где после последнего индекса следует первый. Позволяет повторно использовать освободившиеся ячейки.
+
+**Deque (double-ended queue)** — двусторонняя очередь, поддерживающая вставку и удаление с обоих концов.
+
+**Monotonic Queue (монотонная очередь)** — специализированный deque, в котором поддерживается строго возрастающий или убывающий порядок. Используется в задачах Sliding Window Maximum.
+
+## Как устроено
+
+### Операции
+
+| Операция | Сложность | Описание |
+|----------|-----------|----------|
+| `enqueue(item)` / `add(item)` | O(1) | Добавить элемент в хвост |
+| `dequeue()` / `remove()` | O(1) | Удалить и вернуть элемент из головы |
+| `peek()` | O(1) | Вернуть элемент из головы без удаления |
+| `isEmpty()` | O(1) | Проверить пустоту очереди |
+
+### Реализация через связный список
+
+Очередь — это фактически односвязный список, где элементы добавляются с одного конца и удаляются с другого. Требует двух указателей: `head` (для удаления) и `tail` (для добавления). Связные списки эффективны для очередей: вставка и удаление без сдвига остальных элементов.
+
+### Реализация через кольцевой массив
+
+При фиксированном массиве поддерживаются два индекса: `head` (для удаления) и `tail` (для добавления). Чтобы не упираться в конец массива — реализуется как кольцевой: индекс после последнего элемента возвращается к началу. Условия:
+- Пустая очередь: `head == tail`
+- Полная очередь: `head == (tail + 1) % capacity`
+
+### BFS с использованием очереди
+
+Очередь — обязательный компонент BFS. Обход «широкий перед глубоким»:
+1. Добавить стартовый узел в очередь
+2. Пока очередь не пуста:
+   - Dequeue узел, «посетить» его
+   - Enqueue все непосещённые соседи в конец
+3. FIFO гарантирует обработку узлов в порядке их обнаружения — уровень за уровнем
+
+### Level-by-Level обработка
+
+Если нужно знать точный уровень узла (например, создать связный список узлов каждой глубины) — стандартный BFS модифицируется: в начале каждой итерации вычисляется размер очереди. Затем обрабатывается ровно `size` узлов текущего уровня, их дети попадают в следующий уровень.
+
+## Детали и нюансы
+
+**Кольцевая очередь**: без кольцевого обёртывания — очередь на основе массива быстро достигнет конца массива даже если в начале есть свободные ячейки.
+
+**Monotonic Queue (не в источниках напрямую)**: источники не содержат детальную информацию о монотонной очереди. По данным источников — deque упоминается как структура с вставкой/удалением с обоих концов.
+
+## Сравнения и trade-offs
+
+| | Queue (FIFO) | Stack (LIFO) |
+|--|--------------|--------------|
+| Принцип | Первый вошёл — первый вышел | Последний вошёл — первый вышел |
+| Вход | С хвоста | С вершины |
+| Выход | С головы | С вершины |
+| Применение | BFS, задачи по уровням | DFS, рекурсия, undo-redo |
+
+| Реализация | Плюсы | Минусы |
+|------------|-------|--------|
+| Linked List | Динамический размер, O(1) всегда | Доп. память на указатели |
+| Circular Array | Cache-friendly | Фиксированный размер |
+
+## Примеры
+
+```go
+// Реализация очереди через linked list
+type QNode[T any] struct {
+    Val  T
+    Next *QNode[T]
+}
+
+type Queue[T any] struct {
+    head, tail *QNode[T]
+    size       int
+}
+
+func (q *Queue[T]) Enqueue(val T) {
+    node := &QNode[T]{Val: val}
+    if q.tail != nil {
+        q.tail.Next = node
+    }
+    q.tail = node
+    if q.head == nil {
+        q.head = node
+    }
+    q.size++
+}
+
+func (q *Queue[T]) Dequeue() (T, bool) {
+    var zero T
+    if q.head == nil {
+        return zero, false
+    }
+    val := q.head.Val
+    q.head = q.head.Next
+    if q.head == nil {
+        q.tail = nil
+    }
+    q.size--
+    return val, true
+}
+
+func (q *Queue[T]) Peek() (T, bool) {
+    var zero T
+    if q.head == nil {
+        return zero, false
+    }
+    return q.head.Val, true
+}
+
+func (q *Queue[T]) IsEmpty() bool {
+    return q.head == nil
+}
+
+// BFS на графе
+func bfs(graph map[int][]int, start int) []int {
+    visited := make(map[int]bool)
+    q := &Queue[int]{}
+    var result []int
+
+    q.Enqueue(start)
+    visited[start] = true
+
+    for !q.IsEmpty() {
+        node, _ := q.Dequeue()
+        result = append(result, node)
+        for _, neighbor := range graph[node] {
+            if !visited[neighbor] {
+                visited[neighbor] = true
+                q.Enqueue(neighbor)
+            }
+        }
+    }
+    return result
+}
+
+// BFS на бинарном дереве — уровень за уровнем
+type TreeNode struct {
+    Val   int
+    Left  *TreeNode
+    Right *TreeNode
+}
+
+func levelOrder(root *TreeNode) [][]int {
+    if root == nil {
+        return nil
+    }
+    var result [][]int
+    queue := []*TreeNode{root}
+
+    for len(queue) > 0 {
+        levelSize := len(queue)
+        level := make([]int, 0, levelSize)
+        for i := 0; i < levelSize; i++ {
+            node := queue[0]
+            queue = queue[1:]
+            level = append(level, node.Val)
+            if node.Left != nil {
+                queue = append(queue, node.Left)
+            }
+            if node.Right != nil {
+                queue = append(queue, node.Right)
+            }
+        }
+        result = append(result, level)
+    }
+    return result
+}
+
+// Кольцевая очередь на основе массива
+type CircularQueue struct {
+    data        []int
+    head, tail  int
+    size, cap   int
+}
+
+func NewCircularQueue(capacity int) *CircularQueue {
+    return &CircularQueue{data: make([]int, capacity), cap: capacity}
+}
+
+func (q *CircularQueue) Enqueue(val int) bool {
+    if q.size == q.cap {
+        return false // переполнение
+    }
+    q.data[q.tail] = val
+    q.tail = (q.tail + 1) % q.cap
+    q.size++
+    return true
+}
+
+func (q *CircularQueue) Dequeue() (int, bool) {
+    if q.size == 0 {
+        return 0, false
+    }
+    val := q.data[q.head]
+    q.head = (q.head + 1) % q.cap
+    q.size--
+    return val, true
+}
+```
+
+## Связи с другими темами
+
+- [[Stack]] — противоположный принцип: LIFO вместо FIFO
+- [[Binary Tree BFS]] — level-order traversal основан на очереди
+- [[Graphs]] — BFS на графах использует очередь для обхода
+- [[Sliding Window]] — монотонная очередь (deque) применяется для Sliding Window Maximum
+
+## Важно / подводные камни / best practices
+
+- В Go нет встроенного Queue — используй срез (`[]T`) с `append` и `[1:]`, или `container/list`
+- `queue = queue[1:]` в Go не освобождает память — для долгоживущих очередей используй явную реализацию
+- При BFS обязательно отмечай узел как visited **при добавлении** в очередь (а не при извлечении) — иначе один узел может быть добавлен несколько раз
+- Кольцевая очередь: `empty` — `head == tail`; `full` — `head == (tail + 1) % cap`
+
+---
+
+## Карточки для повторения
+
+#flashcards/algorithms/queue
+
+Что такое Queue и принцип FIFO?::FIFO — First-In, First-Out. Первый добавленный элемент извлекается первым. Аналог — очередь людей на остановке.
+
+Четыре операции очереди и их сложность?::enqueue(item) — O(1) добавить в хвост; dequeue() — O(1) удалить и вернуть из головы; peek() — O(1) посмотреть голову; isEmpty() — O(1) проверить пустоту.
+
+Почему связный список лучше обычного массива для Queue?::Linked list: вставка и удаление без сдвига элементов, O(1) всегда. Обычный массив — деqueue сдвигает все элементы или тратит впустую место.
+
+Как работает кольцевая очередь (Circular Queue)?::Два индекса head и tail. После последнего индекса — возврат к нулевому: `(tail + 1) % cap`. Пустая: `head == tail`. Полная: `head == (tail + 1) % cap`.
+
+Почему Queue — ключевая структура для BFS?::FIFO гарантирует обработку узлов в порядке обнаружения: сначала все соседи уровня 1, затем уровня 2 и т.д. — обход уровень за уровнем.
+
+Как реализовать BFS уровень за уровнем?::В начале каждой итерации фиксировать `size = len(queue)`. Обработать ровно `size` узлов текущего уровня, их дети попадают в следующий уровень.
+
+Чем Deque отличается от Queue?::Deque (double-ended queue) — вставка и удаление с обоих концов. Queue — только enqueue в хвост и dequeue из головы.
+
+---
+
+## Источники
+
+**Книга:**
+- Название: Grokking Algorithms
+- Автор: Aditya Bhargava (Адитья Бхаргава)
+- Год: 2016 (оригинал, Manning Publications Co.) / 2017 (русское издание, «Питер»)
+- ISBN: 978-1-617292231 (EN) / 978-5-496-02541-6 (RU)
+- Переводчик (RU): Е. Матвеев
+
+**Книга:**
+- Название: Cracking the Coding Interview (6th Edition)
+- Автор: Gayle Laakmann McDowell
+- Год: 2015 (copyright), 2016 (компиляция)
+- Издатель: CareerCup, LLC (Palo Alto, CA)
+- ISBN: 978-0-9847828-5-7
+
+**Книга:**
+- Название: Introduction to Algorithms (3rd Edition) — CLRS
+- Авторы: Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein
+- Год: 2009
+- Издатель: The MIT Press (Cambridge, Massachusetts / London, England)
+- ISBN: 978-0-262-03384-8 (hardcover) / 978-0-262-53305-8 (paperback)
+
+---
+
+## Теги
+
+#конспект #algorithms #queue #data-structures #fifo #bfs #interview-prep

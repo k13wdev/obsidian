@@ -1,0 +1,438 @@
+# Backtracking
+
+## Суть и контекст
+
+Backtracking (поиск с возвратом) — алгоритмическая техника рекурсивного построения решения по частям. На каждом шаге делается выбор, если он приводит в тупик — выполняется **откат** (backtrack) и пробуется следующий вариант. Визуализируется как дерево решений, где узлы — частичные состояния, ветви — доступные выборы. Используется для задач «перечисления всех вариантов» с жёсткими ограничениями.
+
+## Ключевые идеи
+
+- Строим решение инкрементно, шаг за шагом
+- При тупике — откат: отменяем последнее изменение состояния и пробуем альтернативу
+- Дерево решений: узел = частичное состояние, ветви = следующие выборы
+- Pruning (отсечение): если текущее частичное состояние нарушает ограничения → немедленно прерываем эту ветку
+- Временная сложность экспоненциальная или факториальная — но pruning резко сокращает реальное время
+
+## Определения и термины
+
+**Backtracking** — техника рекурсивного построения решения: делаем выбор, рекурсируем, отменяем выбор при возврате.
+
+**Base Case (базовый случай)** — условие остановки рекурсии. В backtracking обычно означает нахождение полного валидного решения.
+
+**Recursive Case** — часть функции, вызывающая саму себя для дальнейшего исследования.
+
+**State (состояние)** — текущий частичный результат в точке рекурсии (например, текущий путь, текущая доска N-Queens).
+
+**Decision Tree (дерево решений)** — дерево, где каждый узел — вызов функции с конкретным частичным состоянием, ветви — следующие доступные выборы.
+
+**Pruning (отсечение)** — ранняя остановка рекурсии по ветке, которая заведомо не приведёт к решению. «Short-circuit» или «stop recursing down paths which will obviously fail».
+
+**State Space** — пространство всех возможных состояний, которые алгоритм исследует.
+
+**Leaf Node** — лист дерева решений. Обычно = базовый случай, полное (валидное или нет) состояние.
+
+## Как устроено
+
+### Структура рекурсии
+
+Каждая рекурсивная функция должна содержать ровно две части:
+1. **Базовый случай**: условие остановки — нашли полное решение или исчерпали все варианты
+2. **Рекурсивный случай**: делаем выбор → изменяем состояние → рекурсируем → **отменяем изменение** (backtrack)
+
+```
+function backtrack(state):
+    if is_complete(state):
+        add_to_results(state)
+        return
+    for choice in available_choices(state):
+        make_choice(choice)      // изменить состояние
+        backtrack(state)         // рекурсия
+        undo_choice(choice)      // откат — состояние чистое для следующего выбора
+```
+
+Ключевой момент: **откат гарантирует чистоту состояния** для следующей альтернативы.
+
+### Дерево решений
+
+Каждый узел = вызов функции с конкретным частичным состоянием. Ветви = следующие доступные выборы. Листья = базовые случаи (полное решение).
+
+### Pruning (отсечение)
+
+Перед рекурсивным вызовом — проверка: нарушает ли текущее состояние ограничения? Если да → немедленный return, не рекурсируем вглубь. Экономит огромное количество вычислений.
+
+## Детали и нюансы
+
+### Subsets (подмножества, Power Set)
+
+Генерация всех подмножеств множества: для каждого элемента — два выбора: включить или не включить.
+
+- Пространство состояний: 2ⁿ возможных последовательностей
+- Временная сложность: O(n × 2ⁿ) — 2ⁿ подмножеств, каждое требует до n операций
+
+### Permutations (перестановки)
+
+Построение строки с нуля: на каждом шаге выбирается один из оставшихся неиспользованных символов, добавляется к префиксу, рекурсия для остальных.
+
+- Временная сложность: O(n × n!) — n! листьев (валидных перестановок), O(n) на построение каждой
+
+### N-Queens (Eight Queens)
+
+Расставить 8 ферзей на доске 8×8 так, чтобы ни одна не атаковала другую (не делили ряд, столбец или диагональ).
+
+Backtracking: пробуем поставить ферзя в каждый столбец текущего ряда:
+- Если позиция валидна (`checkValid(row, col)`) → ставим ферзя → рекурсия для следующего ряда `placeQueens(row + 1)`
+- Если тупик → backtrack → убираем ферзя → пробуем следующий столбец
+- Pruning: немедленно пропускаем невалидные позиции
+
+### Sudoku
+
+Сканируем пустые ячейки, пробуем цифры 1-9, pruning по правилам Судоку (ряд, столбец, блок 3×3), рекурсия, backtrack при неудаче. Структурно идентично N-Queens.
+
+## Сравнения и trade-offs
+
+| Задача | Сложность (без pruning) | Комментарий |
+|--------|------------------------|-------------|
+| Subsets | O(n × 2ⁿ) | 2ⁿ подмножеств |
+| Permutations | O(n × n!) | n! перестановок, O(n) на каждую |
+| N-Queens | < O(n!) с pruning | Pruning отсекает большинство ветвей |
+| Sudoku | < O(9^81) | Мощное pruning резко снижает |
+
+## Когда применять backtracking
+
+- Задача просит перечислить комбинации, генерировать перестановки, или вычислить «все возможные способы»
+- Решение строится на основе меньших подзадач
+- Выборы должны быть исчерпывающими, но с жёсткими ограничениями
+- Нет полиномиального алгоритма → backtracking + pruning как практическое решение
+
+## Примеры
+
+```go
+// Генерация всех подмножеств (Power Set)
+func subsets(nums []int) [][]int {
+    var result [][]int
+    var backtrack func(start int, current []int)
+    backtrack = func(start int, current []int) {
+        // Базовый случай: добавляем текущее подмножество в результат
+        tmp := make([]int, len(current))
+        copy(tmp, current)
+        result = append(result, tmp)
+        // Рекурсивный случай: выбираем следующий элемент
+        for i := start; i < len(nums); i++ {
+            current = append(current, nums[i]) // выбор
+            backtrack(i+1, current)            // рекурсия
+            current = current[:len(current)-1] // откат
+        }
+    }
+    backtrack(0, nil)
+    return result
+}
+
+// Генерация всех перестановок
+func permutations(nums []int) [][]int {
+    var result [][]int
+    var backtrack func(start int)
+    backtrack = func(start int) {
+        if start == len(nums) { // базовый случай
+            tmp := make([]int, len(nums))
+            copy(tmp, nums)
+            result = append(result, tmp)
+            return
+        }
+        for i := start; i < len(nums); i++ {
+            nums[start], nums[i] = nums[i], nums[start] // выбор
+            backtrack(start + 1)                        // рекурсия
+            nums[start], nums[i] = nums[i], nums[start] // откат
+        }
+    }
+    backtrack(0)
+    return result
+}
+
+// N-Queens
+func solveNQueens(n int) [][]string {
+    board := make([][]byte, n)
+    for i := range board {
+        board[i] = make([]byte, n)
+        for j := range board[i] {
+            board[i][j] = '.'
+        }
+    }
+    var result [][]string
+    cols := make(map[int]bool)
+    diag1 := make(map[int]bool) // row - col
+    diag2 := make(map[int]bool) // row + col
+
+    var backtrack func(row int)
+    backtrack = func(row int) {
+        if row == n { // базовый случай — все ферзи расставлены
+            snapshot := make([]string, n)
+            for i, r := range board {
+                snapshot[i] = string(r)
+            }
+            result = append(result, snapshot)
+            return
+        }
+        for col := 0; col < n; col++ {
+            // Pruning: проверка валидности позиции
+            if cols[col] || diag1[row-col] || diag2[row+col] {
+                continue
+            }
+            // Выбор
+            board[row][col] = 'Q'
+            cols[col] = true
+            diag1[row-col] = true
+            diag2[row+col] = true
+            // Рекурсия
+            backtrack(row + 1)
+            // Откат
+            board[row][col] = '.'
+            cols[col] = false
+            diag1[row-col] = false
+            diag2[row+col] = false
+        }
+    }
+    backtrack(0)
+    return result
+}
+
+// Combination Sum — комбинации с суммой target
+func combinationSum(candidates []int, target int) [][]int {
+    var result [][]int
+    var backtrack func(start, remaining int, current []int)
+    backtrack = func(start, remaining int, current []int) {
+        if remaining == 0 { // нашли комбинацию
+            tmp := make([]int, len(current))
+            copy(tmp, current)
+            result = append(result, tmp)
+            return
+        }
+        for i := start; i < len(candidates); i++ {
+            if candidates[i] > remaining { // pruning
+                continue
+            }
+            current = append(current, candidates[i]) // выбор
+            backtrack(i, remaining-candidates[i], current) // рекурсия (i, не i+1 — можно повторять)
+            current = current[:len(current)-1] // откат
+        }
+    }
+    backtrack(0, target, nil)
+    return result
+}
+
+// Word Search на доске — Backtracking + Trie pruning
+func exist(board [][]byte, word string) bool {
+    rows, cols := len(board), len(board[0])
+    var backtrack func(i, j, k int) bool
+    backtrack = func(i, j, k int) bool {
+        if k == len(word) { // нашли слово
+            return true
+        }
+        if i < 0 || i >= rows || j < 0 || j >= cols || board[i][j] != word[k] {
+            return false // pruning
+        }
+        tmp := board[i][j]
+        board[i][j] = '#' // пометить как посещённое
+        found := backtrack(i+1, j, k+1) ||
+            backtrack(i-1, j, k+1) ||
+            backtrack(i, j+1, k+1) ||
+            backtrack(i, j-1, k+1)
+        board[i][j] = tmp // откат
+        return found
+    }
+    for i := 0; i < rows; i++ {
+        for j := 0; j < cols; j++ {
+            if backtrack(i, j, 0) {
+                return true
+            }
+        }
+    }
+    return false
+}
+```
+
+## Дополнительные паттерны
+
+### DFS vs Backtracking
+
+| | DFS | Backtracking |
+|--|-----|-------------|
+| Цель | Обход всех узлов графа/дерева | Построение/поиск решения через выборы |
+| Откат | Не обязателен | **Обязателен** (отмена изменения состояния) |
+| Применение | Связность, кратчайший путь | Комбинации, перестановки, ограничения |
+| Состояние | Visited set | Частичное решение (путь/доска/строка) |
+
+Backtracking — специализированная форма DFS для пространства состояний с откатом.
+
+### Подсчёт решений vs Нахождение первого решения
+
+**Найти первое решение**: рекурсия возвращает `bool`. При нахождении — немедленно вернуть `true`, иначе — `false`. Позволяет прерывать поиск досрочно.
+
+**Подсчитать все решения**: рекурсия возвращает `int`. На каждой ветке суммировать результаты дочерних вызовов. Нельзя прерваться досрочно.
+
+### Генерация скобок (Parentheses Generation)
+
+**Состояние**: `leftRem` (оставшихся открывающих), `rightRem` (оставшихся закрывающих).
+
+**Ограничение**: `rightRem > leftRem` → можно добавлять `)`, только если закрывающих осталось больше открывающих. Гарантирует валидность.
+
+**Сложность**: O(2ⁿ) ветвей, O(n) глубина стека.
+
+### T9 / Phone Letter Combinations + Trie
+
+Каждая цифра телефона соответствует 3-4 буквам. Backtracking: для каждого символа ввода — перебрать все буквы цифры. Без Trie: O(4ⁿ). С Trie словаря: pruning — если текущий префикс не является префиксом ни одного слова → срезать ветку.
+
+### Flood Fill — DFS на сетке
+
+Заполнить связный регион из начальной точки новым цветом. DFS от начальной точки во все 4 стороны (иногда 8), пока цвет совпадает с исходным. Помечать посещённые клетки изменением цвета (откат не нужен — постоянное изменение).
+
+### Word Break / Re-Space с мемоизацией + Trie
+
+Разбить строку на слова из словаря. Чистый backtracking: O(2ⁿ). С мемоизацией по индексу: O(n²) или O(n·max_word_len). С Trie: эффективный поиск всех подходящих слов от текущей позиции за O(n).
+
+```go
+// Генерация скобок
+func generateParenthesis(n int) []string {
+    var result []string
+    var backtrack func(current string, leftRem, rightRem int)
+    backtrack = func(current string, leftRem, rightRem int) {
+        if leftRem == 0 && rightRem == 0 {
+            result = append(result, current)
+            return
+        }
+        if leftRem > 0 {
+            backtrack(current+"(", leftRem-1, rightRem)
+        }
+        if rightRem > leftRem { // можно закрыть только если больше закрывающих осталось
+            backtrack(current+")", leftRem, rightRem-1)
+        }
+    }
+    backtrack("", n, n)
+    return result
+}
+
+// Flood Fill — DFS на сетке
+func floodFill(image [][]int, sr, sc, newColor int) [][]int {
+    originalColor := image[sr][sc]
+    if originalColor == newColor {
+        return image
+    }
+    var dfs func(r, c int)
+    dfs = func(r, c int) {
+        if r < 0 || r >= len(image) || c < 0 || c >= len(image[0]) {
+            return
+        }
+        if image[r][c] != originalColor {
+            return
+        }
+        image[r][c] = newColor
+        dfs(r+1, c)
+        dfs(r-1, c)
+        dfs(r, c+1)
+        dfs(r, c-1)
+    }
+    dfs(sr, sc)
+    return image
+}
+
+// Word Break — мемоизация по индексу
+func wordBreak(s string, wordDict []string) bool {
+    wordSet := make(map[string]bool)
+    for _, w := range wordDict {
+        wordSet[w] = true
+    }
+    memo := make(map[int]bool)
+    var bt func(start int) bool
+    bt = func(start int) bool {
+        if start == len(s) {
+            return true
+        }
+        if v, ok := memo[start]; ok {
+            return v
+        }
+        for end := start + 1; end <= len(s); end++ {
+            if wordSet[s[start:end]] && bt(end) {
+                memo[start] = true
+                return true
+            }
+        }
+        memo[start] = false
+        return false
+    }
+    return bt(0)
+}
+```
+
+## Связи с другими темами
+
+- [[Trie Autocomplete]] — Trie используется для pruning в backtracking (Word Search, Words in Board, T9)
+- [[Binary Tree DFS]] — backtracking структурно близок: рекурсия + explored paths
+- [[Dynamic Programming]] — когда backtracking имеет перекрывающиеся подзадачи → мемоизация → DP
+- [[Stack]] — рекурсия в backtracking = неявный стек вызовов
+- [[Graphs]] — Flood Fill = DFS на неявном графе (сетке)
+
+## Важно / подводные камни / best practices
+
+- **Откат обязателен**: изменение состояния при выборе → рекурсия → **обязательная отмена** при возврате. Иначе состояние «загрязнено» для следующего выбора
+- Pruning — ключ к производительности: проверяй ограничения **до** рекурсивного вызова
+- Копируй состояние при добавлении в результат: `copy(tmp, current)` — иначе все результаты будут ссылаться на один изменяемый срез
+- Для Word Search — помечай ячейку как посещённую и **обязательно** восстанавливай при откате
+
+---
+
+## Карточки для повторения
+
+#flashcards/algorithms/backtracking
+
+Что такое backtracking?::Техника рекурсивного построения решения по частям. Делаем выбор → рекурсируем → при тупике отменяем выбор и пробуем альтернативу.
+
+Обязательные две части рекурсивной функции в backtracking?::1) Base case — условие остановки (нашли решение); 2) Recursive case — выбор, рекурсия, откат (undo choice).
+
+Что такое pruning и зачем нужен?::Ранняя остановка рекурсии по ветке, нарушающей ограничения. «Отсекаем» заведомо бесперспективные пути до рекурсивного вызова. Резко снижает фактическое время.
+
+Почему откат (undo) обязателен?::Состояние должно быть «чистым» для следующего выбора на том же уровне. Без отката все альтернативы будут выполняться с «загрязнённым» состоянием.
+
+Сложность генерации подмножеств?::O(n × 2ⁿ) — 2ⁿ подмножеств, каждое требует до n операций для копирования.
+
+Сложность генерации перестановок?::O(n × n!) — n! листьев (перестановок), O(n) на построение каждой.
+
+Когда применять backtracking?::Задача просит перечислить комбинации, перестановки, «все возможные способы». Решение строится инкрементно с ограничениями. Нет полиномиального алгоритма.
+
+Как backtracking связан с Dynamic Programming?::Если backtracking имеет перекрывающиеся подзадачи — добавить мемоизацию → получим DP. DP = backtracking + кэш результатов подзадач.
+
+Чем DFS отличается от Backtracking?::DFS обходит граф/дерево посещая узлы. Backtracking — специализированная форма DFS для пространства выборов: строит частичное решение, при нарушении ограничений — откатывает состояние.
+
+Как работает генерация скобок?::Состояние: leftRem + rightRem. Добавлять «(» если leftRem > 0; добавлять «)» только если rightRem > leftRem (иначе невалидно). Базовый случай: оба = 0.
+
+Как ускорить Word Break через мемоизацию?::Мемоизировать по индексу start: memo[start] = true/false. Если от start уже проверяли — вернуть кэш. Снижает O(2ⁿ) до O(n²).
+
+Что такое Flood Fill и как реализовать?::DFS на сетке от начальной точки. Пока цвет клетки = исходному → перекрасить в новый и рекурсировать во все 4 стороны. Посещение отмечается изменением цвета (откат не нужен).
+
+---
+
+## Источники
+
+**Книга:**
+- Название: Grokking Algorithms
+- Автор: Aditya Bhargava (Адитья Бхаргава)
+- Год: 2016 (оригинал, Manning Publications Co.) / 2017 (русское издание, «Питер»)
+- ISBN: 978-1-617292231 (EN) / 978-5-496-02541-6 (RU)
+- Переводчик (RU): Е. Матвеев
+
+**Книга:**
+- Название: Cracking the Coding Interview (6th Edition)
+- Автор: Gayle Laakmann McDowell
+- Год: 2015 (copyright), 2016 (компиляция)
+- Издатель: CareerCup, LLC (Palo Alto, CA)
+- ISBN: 978-0-9847828-5-7
+
+**Книга:**
+- Название: Introduction to Algorithms (3rd Edition) — CLRS
+- Авторы: Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein
+- Год: 2009
+- Издатель: The MIT Press (Cambridge, Massachusetts / London, England)
+- ISBN: 978-0-262-03384-8 (hardcover) / 978-0-262-53305-8 (paperback)
+
+---
+
+## Теги
+
+#конспект #algorithms #backtracking #recursion #pruning #interview-prep
