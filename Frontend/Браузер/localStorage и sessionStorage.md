@@ -1,5 +1,3 @@
-# localStorage и sessionStorage
-
 ## Суть и контекст
 
 **Web Storage API** — браузерный механизм хранения пар «ключ/значение» на стороне клиента. Более интуитивная альтернатива HTTP-cookies для хранения небольших данных без отправки на сервер. Включает два хранилища: **localStorage** (постоянное) и **sessionStorage** (на время вкладки).
@@ -243,7 +241,7 @@ window.addEventListener('storage', (e) => {
 
 ## Карточки для повторения
 
-#flashcards
+#flashcards/browser/storage
 
 Чем localStorage отличается от sessionStorage по lifetime?::localStorage — бессрочно (не удаляется при закрытии браузера). sessionStorage — удаляется при закрытии вкладки, переживает только перезагрузку страницы.
 
