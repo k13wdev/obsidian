@@ -335,7 +335,30 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### 6. WithoutCancel — фоновая задача (Go 1.21)
+### 6. Полный пример WithCancel с гонкой таймера
+
+```go
+func f1(t int) {
+    c1 := context.Background()
+    c1, cancel := context.WithCancel(c1)
+    defer cancel()
+
+    go func() {
+        time.Sleep(4 * time.Second)
+        cancel()
+    }()
+
+    select {
+    case <-c1.Done():
+        fmt.Println("f1():", c1.Err())
+        return
+    case r := <-time.After(time.Duration(t) * time.Second):
+        fmt.Println("f1():", r)
+    }
+}
+```
+
+### 7. WithoutCancel — фоновая задача (Go 1.21)
 
 ```go
 func handler(w http.ResponseWriter, r *http.Request) {
