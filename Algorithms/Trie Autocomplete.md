@@ -83,6 +83,38 @@ Trie (префиксное дерево, Prefix Tree) — специализир
 - Способ 1: добавить все короткие строки в Trie, итерироваться по большой строке
 - Способ 2: добавить все суффиксы большой строки в Trie, искать короткие строки
 
+### Wildcard Search
+
+Поиск с подстановочным символом `.` (wildcard, соответствует любому одному символу). При встрече `.` — рекурсивно проверяются все дочерние узлы. Реализуется через DFS с ветвлением на wildcard.
+
+```go
+// Wildcard Search — поддержка "." как любого символа
+func (t *Trie) SearchWithWildcard(word string) bool {
+    var dfs func(node *TrieNode, i int) bool
+    dfs = func(node *TrieNode, i int) bool {
+        if i == len(word) {
+            return node.isEnd
+        }
+        ch := word[i]
+        if ch == '.' {
+            // Wildcard — проверить все дочерние
+            for _, child := range node.children {
+                if child != nil && dfs(child, i+1) {
+                    return true
+                }
+            }
+            return false
+        }
+        idx := ch - 'a'
+        if node.children[idx] == nil {
+            return false
+        }
+        return dfs(node.children[idx], i+1)
+    }
+    return dfs(t.root, 0)
+}
+```
+
 ## Детали и нюансы
 
 **Trie vs HashMap для поиска слов**: оба O(K) по времени, но Trie дополнительно поддерживает prefix search. HashMap — быстрее на практике (константы), Trie — мощнее для prefix-задач.
@@ -297,6 +329,8 @@ func findWords(board [][]byte, words []string) []string {
 Почему Trie vs HashMap для поиска?::Оба O(K), но Trie дополнительно поддерживает prefix search и autocomplete. HashMap — проще и быстрее на практике.
 
 Как Trie используется для pruning в backtracking?::Если текущий собранный префикс не найден в Trie (StartsWith = false) → немедленно прекратить рекурсию по этому пути. Срезаем бесперспективные ветки.
+
+Как реализовать wildcard search в Trie?::При встрече «.» (wildcard) — рекурсивно проверить все дочерние узлы. Для обычных символов — стандартный спуск. DFS с ветвлением на wildcard.
 
 ---
 
