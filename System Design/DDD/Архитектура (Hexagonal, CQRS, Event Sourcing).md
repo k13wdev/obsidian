@@ -205,6 +205,17 @@ BacklogItem.commitToSprint()
 
 ---
 
+## Связи с другими темами
+
+- [[Aggregates]] — агрегаты как ядро доменной модели в Hexagonal Architecture; CQRS решает проблему ссылок между агрегатами по ID
+- [[Domain Events]] — основа CQRS и Event Sourcing
+- [[Repositories, Factories, Services]] — Repository как адаптер в Hexagonal Architecture
+- [[Ubiquitous Language и Bounded Context]] — интеграция между Bounded Contexts через события
+- [[Application Layer]] — Application Services как Primary Ports в Hexagonal Architecture
+- [[Модули и слои (Modules, Layered Architecture)|Модули и слои]] — Hexagonal как эволюция Layered Architecture
+
+---
+
 ## Важно / подводные камни
 
 - **CQRS — не обязателен везде.** Начни без CQRS; добавляй только если производительность чтения или масштабируемость являются реальной проблемой.

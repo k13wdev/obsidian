@@ -149,6 +149,74 @@ class FundsTransferService:
 
 ---
 
+## Связи с другими темами
+
+- [[Aggregates]] — Repository работает только с корнями агрегатов, Factory создаёт агрегаты
+- [[Domain Events]] — публикуются после сохранения агрегата через Repository
+- [[Entities и Value Objects]] — Factory создаёт сложные объекты из Entity и Value Objects
+- [[Архитектура (Hexagonal, CQRS, Event Sourcing)|Архитектура]] — Repository реализуется как Adapter в Hexagonal Architecture
+- [[Application Layer]] — Application Service координирует работу с Repository и Factory
+- [[Антипаттерны DDD]] — Dependency Injection в агрегаты vs Double Dispatch
+
+---
+
+## Specification Pattern (Спецификации)
+
+### Определение
+
+**Specification** — предикат, который определяет, удовлетворяет ли объект некоторым критериям. Это явный объект-значение (Value Object) с поведением предиката.
+
+### Три применения
+
+1. **Валидация (Validation)** — тестирование существующего объекта перед выполнением бизнес-логики.
+2. **Выборка (Selection/Querying)** — извлечение подмножества объектов из Repository.
+3. **Создание на заказ (Building to order)** — спецификация описывает требования к новому объекту, передаётся в генератор/фабрику.
+
+### Пример: просроченный счёт
+
+```java
+public class DelinquentInvoiceSpecification extends InvoiceSpecification {
+    private Date currentDate;
+    public DelinquentInvoiceSpecification(Date currentDate) {
+        this.currentDate = currentDate;
+    }
+    public boolean isSatisfiedBy(Invoice candidate) {
+        int gracePeriod = candidate.customer().getPaymentGracePeriod();
+        Date firmDeadline =
+            DateUtility.addDaysToDate(candidate.dueDate(), gracePeriod);
+        return currentDate.after(firmDeadline);
+    }
+}
+```
+
+### Composite Specification
+
+Паттерн Composite позволяет объединять базовые спецификации операторами AND, OR, NOT:
+
+```java
+Specification both = ventilated.and(armored);
+```
+
+### Double Dispatch с Repository
+
+```java
+public class InvoiceRepository {
+    public Set selectSatisfying(InvoiceSpecification spec) {
+        return spec.satisfyingElementsFrom(this);
+    }
+}
+
+public class DelinquentInvoiceSpecification {
+    public Set satisfyingElementsFrom(InvoiceRepository repository) {
+        return repository.selectWhereGracePeriodPast(currentDate);
+    }
+}
+```
+
+Repository передаёт себя (`this`) в метод Спецификации. Спецификация вызывает специализированный метод Repository — SQL остаётся в инфраструктуре, бизнес-правило — в домене.
+
+---
+
 ## Важно / подводные камни
 
 - **Репозиторий — только для корней агрегатов.** Если нужен «репозиторий внутренней сущности» — значит, неправильно определены границы агрегата.
@@ -176,6 +244,16 @@ class FundsTransferService:
 ?
 - **Domain Service** — содержит **бизнес-логику** домена.
 - **Application Service** — **оркестрирует**: загрузить агрегат из репозитория, вызвать метод, сохранить. Сам бизнес-логики не содержит.
+
+Что такое Specification в DDD?::Предикат (Value Object), определяющий, удовлетворяет ли объект некоторым критериям. Используется для валидации, выборки из Repository и создания на заказ.
+
+Какие три применения Specification?
+?
+1. **Валидация** — тестирование объекта перед выполнением бизнес-логики.
+2. **Выборка (Querying)** — извлечение подмножества объектов из Repository.
+3. **Создание на заказ** — описание требований к новому объекту для фабрики.
+
+Как Specification взаимодействует с Repository через Double Dispatch?::Repository передаёт себя (this) в метод Спецификации. Спецификация вызывает специализированный метод Repository — SQL остаётся в инфраструктуре, бизнес-правило — в домене.
 
 Каков жизненный цикл агрегата?
 ?

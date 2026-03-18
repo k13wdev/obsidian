@@ -65,12 +65,16 @@ DDD
 
 ## Связи с другими темами
 
-- [[02 — Ubiquitous Language и Bounded Context]] — первый шаг в стратегическом дизайне
-- [[03 — Entities и Value Objects]] — базовые строительные блоки
-- [[04 — Aggregates]] — главный паттерн управления сложностью
-- [[05 — Repositories, Factories, Services]] — инфраструктурные паттерны
-- [[06 — Domain Events]] — механизм интеграции между частями системы
-- [[07 — Стратегический дизайн]] — Context Map, Core Domain, Distillation
+- [[Ubiquitous Language и Bounded Context]] — первый шаг в стратегическом дизайне
+- [[Entities и Value Objects]] — базовые строительные блоки
+- [[Aggregates]] — главный паттерн управления сложностью
+- [[Repositories, Factories, Services]] — инфраструктурные паттерны
+- [[Domain Events]] — механизм интеграции между частями системы
+- [[Стратегический дизайн (Context Map, Core Domain)|Стратегический дизайн]] — Context Map, Core Domain, Distillation
+- [[Архитектура (Hexagonal, CQRS, Event Sourcing)|Архитектура]] — Hexagonal, CQRS, Event Sourcing
+- [[Application Layer]] — координация Use Cases, транзакции, DTO
+- [[Модули и слои (Modules, Layered Architecture)|Модули и слои]] — Layered Architecture, организация кода
+- [[Антипаттерны DDD]] — типичные ошибки проектирования
 
 ---
 
