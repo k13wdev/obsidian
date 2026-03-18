@@ -115,6 +115,18 @@ ARP-пакет инкапсулируется непосредственно в 
 - **4G/5G мобильные сети** — другая адресация
 - **IPv6** — заменён NDP (Neighbor Discovery Protocol, использует multicast вместо broadcast)
 
+### NDP в IPv6 (детально)
+
+1. Узел формирует ICMPv6 **Neighbor Solicitation (NS)**
+2. Адрес назначения — **Solicited-Node Multicast Address**, синтезированный из целевого IP
+3. Пакет упаковывается в Ethernet-кадр с групповым MAC-адресом
+4. Только узлы, подписанные на эту multicast-группу (скорее всего, только искомый узел), обрабатывают запрос
+5. Целевой узел отвечает **Neighbor Advertisement (NA)** с MAC-адресом
+
+NDP также обеспечивает **DAD (Duplicate Address Detection)** — обнаружение дубликатов адресов.
+
+Защита: проверка **TTL=255** (пакет пришёл из локального сегмента, а не маршрутизировался).
+
 ---
 
 ## Сравнения и trade-offs
@@ -125,6 +137,8 @@ ARP-пакет инкапсулируется непосредственно в 
 | Протокол | Отдельный | Часть ICMPv6 |
 | Безопасность | Stateless, нет проверки | Поддерживает SEcure ND (SEND) |
 | Overhead | Выше (broadcast все узлы) | Ниже (multicast только заинтересованные) |
+| DAD | Нет | Есть (Duplicate Address Detection) |
+| Защита от подмены | Нет | Проверка TTL=255 |
 
 ---
 
@@ -196,6 +210,16 @@ ARP-пакет инкапсулируется непосредственно в 
 Чем заменяется ARP в IPv6?::NDP (Neighbor Discovery Protocol) — часть ICMPv6. Использует multicast вместо broadcast → меньше накладных расходов.
 
 Где ARP не применяется?::В point-to-point соединениях (VPN-туннели), 4G/5G сетях, IPv6. ARP нужен только в средах с multi-access broadcast (например, Ethernet).
+
+Как работает NDP (Neighbor Discovery) в IPv6 пошагово?
+?
+1. Узел формирует ICMPv6 Neighbor Solicitation
+2. Отправляет на Solicited-Node Multicast Address (не broadcast)
+3. Только узлы в multicast-группе обрабатывают запрос
+4. Целевой отвечает Neighbor Advertisement с MAC
+5. TTL=255 проверяет, что пакет из локального сегмента
+
+Что такое DAD в IPv6?::Duplicate Address Detection — механизм NDP для обнаружения дубликатов IPv6-адресов при назначении нового адреса.
 
 ---
 
