@@ -310,7 +310,7 @@ obj1.foo.call(obj2); // 2 — explicit побеждает implicit
 ## Связи с другими темами
 
 - [[Функции]] — декораторы, function declaration vs arrow
-- [[Замыкания]] — паттерн `self = this` (ES5) vs arrow (ES6)
+- [[Замыкания (closures)]] — паттерн `self = this` (ES5) vs arrow (ES6)
 - [[Прототипы и наследование]] — `this` в методах прототипа, super
 - [[Объекты]] — `this` как ссылка на объект-владелец метода
 

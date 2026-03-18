@@ -238,7 +238,7 @@ backup(5); // 120 — fact всё ещё работает
 
 ## Связи с другими темами
 
-- [[Замыкания]] — lexical environment строится поверх scope-цепочки, созданной при компиляции
+- [[Замыкания (closures)]] — lexical environment строится поверх scope-цепочки, созданной при компиляции
 - [[Функции]] — hoisting function declaration vs expression
 - [[Прототипы и наследование]] — `class` объявления также находятся в TDZ
 
