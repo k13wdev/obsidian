@@ -1,0 +1,192 @@
+## Суть и контекст
+
+Chat System — система обмена сообщениями в реальном времени. Поддерживает 1-on-1 чат и групповые чаты. Использует WebSocket для двунаправленной связи, stateful Chat Servers с постоянным подключением клиента, Service Discovery (ZooKeeper) для выбора оптимального сервера и Key-Value Store для хранения сообщений.
+
+---
+
+## Ключевые идеи
+
+- WebSocket — основной протокол для realtime-потока сообщений (bidirectional, persistent)
+- Stateless сервисы (login, signup, profile) — HTTP за балансировщиком. Stateful — только Chat Service
+- Service Discovery (ZooKeeper) выбирает Chat Server на основе географии и загруженности
+- Message sync queue — временное хранение и маршрутизация между серверами
+- Key-Value Store для сообщений: соотношение чтение/запись 1:1, объём 60 млрд/день, последовательный доступ
+- message_id от ID generator для строгого порядка (created_at недостаточно — коллизии в пределах миллисекунды)
+- Online presence через Presence Servers + heartbeat в KV store
+- Group chat: порядок по составному ключу (channel_id, message_id)
+
+---
+
+## Определения и термины
+
+**Chat System (1-on-1 chat)** — система обмена сообщениями между двумя пользователями с низкой задержкой доставки (low delivery latency). Требует поддержки присутствия онлайн (online presence) и работы с нескольких устройств.
+
+**Group chat** — система обмена сообщениями для небольших групп (максимум 100 человек). Порядок сообщений определяется составным ключом (channel_id, message_id).
+
+**WebSocket** — основной протокол двунаправленной связи (bidirectional communication) между клиентом и сервером для передачи сообщений в реальном времени. Клиент поддерживает постоянное (persistent) сетевое соединение с Chat Server.
+
+**Stateless services** — традиционные сервисы запрос/ответ (request/response) для login, signup, профиля. Располагаются за балансировщиком нагрузки, работают по HTTP.
+
+**Stateful service** — единственный сервис с состоянием в архитектуре чата — Chat Service. Состояние сохраняется за счёт постоянного сетевого подключения клиента к конкретному серверу.
+
+**Service Discovery (ZooKeeper)** — сервис, предоставляющий клиенту список DNS-имён (или IP-адресов) Chat Servers для подключения на основе географического положения и загруженности.
+
+**Message sync queue** — очередь синхронизации сообщений для временного хранения и маршрутизации сообщения от сервера отправителя к хранилищу и серверу получателя.
+
+---
+
+## Как устроено
+
+### Компоненты архитектуры
+
+- **Load Balancer** — входная точка для HTTP-запросов
+- **API Servers (Stateless)** — login, signup, профиль
+- **Service Discovery (ZooKeeper)** — выбор Chat Server
+- **Chat Servers (Stateful)** — WebSocket, realtime-доставка
+- **Presence Servers** — статус онлайн/офлайн
+- **Push Notification (PN) Servers** — для офлайн-пользователей
+- **Key-Value Store** — хранение сообщений
+
+### Подключение и Service Discovery
+
+1. Пользователь отправляет HTTP-запрос login на Load Balancer
+2. Запрос маршрутизируется на API Servers для аутентификации
+3. Service Discovery (ZooKeeper) находит оптимальный Chat Server
+4. Пользователь устанавливает постоянное WebSocket соединение с выбранным Chat Server
+
+### Отправка сообщения (1-on-1)
+
+1. Пользователь A отправляет сообщение на Chat Server 1
+2. Chat Server 1 получает message_id от ID generator
+3. Сообщение отправляется в Message sync queue
+4. Сообщение сохраняется в Key-Value Store
+5. Если Пользователь B **онлайн** — сообщение пересылается на Chat Server 2 (к которому подключён B)
+6. Если Пользователь B **офлайн** — триггерится отправка через Push Notification Servers
+7. Chat Server 2 доставляет сообщение Пользователю B по WebSocket
+
+### Online Presence
+
+1. После установки WebSocket соединения статус обновляется через Presence Servers
+2. В Key-Value Store записывается: `User A: {status: online, last_active_at: timestamp}`
+
+---
+
+## Детали и нюансы
+
+- **Сортировка по created_at**: два сообщения могут иметь одинаковую метку времени (миллисекундная коллизия) → требуется message_id от глобального ID generator для строгого упорядочивания
+- **Online presence в больших группах**: в группе на 100 000 человек одно изменение статуса генерирует 100 000 событий → performance bottleneck. Trade-off: запрашивать статус только при входе в группу или ручном обновлении
+- **WebSocket не для всего**: регистрация, логин и профиль должны идти через HTTP request/response. WebSocket — исключительно для realtime-потока сообщений
+- **Партиционирование group_message**: по channel_id, связано с концепцией шардинга данных
+
+---
+
+## Сравнения и trade-offs
+
+| Протокол | Плюсы | Минусы | Когда использовать |
+|----------|-------|--------|-------------------|
+| HTTP (request/response) | Простота, stateless, балансировка | Нет realtime, однонаправленный | Login, signup, профиль |
+| WebSocket | Bidirectional, persistent, realtime | Stateful, сложнее масштабирование | Поток сообщений чата |
+
+---
+
+## Примеры
+
+### Модель данных сообщения (1-on-1, KV Store)
+
+```
+message_id   — глобально уникальный ID (от ID generator)
+message_from — ID отправителя
+message_to   — ID получателя
+content      — текст сообщения
+created_at   — timestamp
+
+Ключ сортировки: message_id (НЕ created_at)
+```
+
+### Модель данных группового чата
+
+```
+Составной ключ: (channel_id, message_id)
+Партиционирование: по channel_id
+```
+
+### Архитектура 1-on-1 chat flow
+
+```
+User A → Chat Server 1 → ID Generator (message_id)
+                       → Message sync queue → KV Store
+                                            → [online]  Chat Server 2 → User B
+                                            → [offline] PN Servers → Push notification
+```
+
+---
+
+## Связи с другими темами
+
+- [[Очереди сообщений]] — Message sync queue для маршрутизации сообщений
+- [[Key-Value Store]] — хранение сообщений (60 млрд/день, последовательный доступ)
+- [[Масштабирование]] — ZooKeeper для Service Discovery, партиционирование по channel_id
+- [[Notification System]] — Push Notification для офлайн-пользователей
+
+---
+
+## Важно / подводные камни / best practices
+
+- **Key-Value Store для сообщений** — чтение/запись 1:1, объём 60 млрд/день, преимущественно последовательный доступ к последним сообщениям
+- **message_id вместо created_at** — для строгого порядка (коллизии timestamps)
+- **WebSocket только для realtime** — login/signup/profile через HTTP stateless сервисы
+- **Online presence в больших группах** — запрашивать статус по требованию, не транслировать постоянно
+
+---
+
+## Карточки для повторения
+
+#flashcards/system-design/chat-system
+
+WebSocket:::Протокол двунаправленной связи (bidirectional) для realtime-сообщений. Клиент поддерживает persistent соединение с Chat Server
+
+Stateful service в Chat System:::Единственный stateful сервис — Chat Service. Состояние: постоянное WebSocket подключение клиента к конкретному серверу
+
+Service Discovery (ZooKeeper) в Chat System:::Предоставляет клиенту оптимальный Chat Server для подключения на основе географии и загруженности
+
+Message sync queue:::Очередь для временного хранения и маршрутизации сообщения от сервера отправителя к хранилищу и серверу получателя
+
+Отправка сообщения в 1-on-1 чате
+?
+1. User A → Chat Server 1
+2. Chat Server 1 → message_id от ID generator
+3. Сообщение → Message sync queue
+4. Сохранение в Key-Value Store
+5. Online → Chat Server 2 → User B по WebSocket
+6. Offline → Push Notification Servers
+
+Подключение к Chat System
+?
+1. HTTP login → Load Balancer → API Servers
+2. ZooKeeper находит оптимальный Chat Server
+3. Клиент → постоянное WebSocket соединение
+
+Почему message_id, а не created_at для порядка сообщений?::Два сообщения могут иметь одинаковую метку времени (миллисекундная коллизия). message_id от глобального ID generator обеспечивает строгий порядок
+
+Group chat: порядок сообщений определяется составным ключом ==(channel_id, message_id)==
+
+Edge case: online presence в группе 100K человек::Одно изменение статуса генерирует 100 000 событий → bottleneck. Trade-off: запрашивать статус только при входе или ручном обновлении
+
+Почему нельзя использовать WebSocket для всех эндпоинтов?::Login, signup, профиль — через HTTP stateless за балансировщиком. WebSocket — исключительно для realtime потока сообщений
+
+Key-Value Store для чат-сообщений: чтение/запись ==1:1==, объём ==60 млрд/день==, доступ преимущественно ==последовательный== к последним сообщениям
+
+---
+
+## Источники
+
+**Книга:**
+- Название: System Design Interview: An Insider's Guide
+- Автор: Alex Xu
+- Содержание: Chapter 12 — Design a Chat System
+
+---
+
+## Теги
+
+#конспект #system-design #system-design/chat-system #system-design/websocket #system-design/zookeeper #system-design/real-time
