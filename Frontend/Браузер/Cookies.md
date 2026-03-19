@@ -48,6 +48,8 @@
 
 **`__Host-` prefix** — cookie должна иметь `Secure`, не иметь `Domain`, иметь `Path=/`. Жёсткая привязка к хосту.
 
+**`Partitioned`** — атрибут: включает использование изолированного партиционированного хранилища (CHIPS). Требует атрибут `Secure`. Каждый сайт верхнего уровня получает свой изолированный экземпляр куки.
+
 ## Как устроено
 
 ### Создание и отправка cookie
@@ -263,6 +265,45 @@ document.cookie; // 'a=1; b=2; c=3'
 // Нет метода для получения Expires/Path/Domain существующей куки
 ```
 
+### Partitioned (CHIPS)
+
+```http
+Set-Cookie: __Host-name=value; Secure; Path=/; SameSite=None; Partitioned
+```
+
+- Атрибут `Partitioned` включает использование изолированного партиционированного хранилища
+- Каждый сайт верхнего уровня получает свой изолированный экземпляр куки
+- Требует атрибут `Secure`
+
+### Fetch API и заголовок Set-Cookie
+
+- Fetch API запрещает фронтенд-коду (JavaScript) читать заголовок `Set-Cookie` из объекта `Response`. Браузер фильтрует и скрывает этот заголовок
+- Нельзя вручную устанавливать заголовок `Cookie` при `fetch()` или `XMLHttpRequest.send()`
+
+### CORS и cookies
+
+- По умолчанию куки **не отправляются** в кросс-доменных запросах
+- Для отправки необходимо:
+  - На клиенте: `xhr.withCredentials = true` или `fetch(url, { credentials: 'include' })`
+  - На сервере: `Access-Control-Allow-Origin: <точный_домен>` (не `*`) и `Access-Control-Allow-Credentials: true`
+
+### Path НЕ является средством безопасности
+
+- Злоумышленник может создать скрытый `<iframe>` с нужным Path на той же странице и получить доступ к куке через `iframe.contentDocument.cookie`
+- Изоляция гарантируется только Same Origin Policy
+
+### Отклонение куки по Domain
+
+- Браузер отклонит куку, если `Domain` указывает на чужой домен (отличный от текущего или его родительского домена)
+
+### document.cookie — медленная операция
+
+- `document.cookie` является геттером/сеттером, это медленная I/O операция, блокирующая основной поток
+
+### Session restore
+
+- При использовании функции восстановления сессии браузер может сохранять session cookies (без `Expires`/`Max-Age`) даже после закрытия
+
 ## Сравнения и trade-offs
 
 | | Cookies | localStorage | sessionStorage |
@@ -323,6 +364,10 @@ Set-Cookie: tracking=id123; SameSite=None; Secure
 - **Удаление** = установка `Expires` в прошлое; совпадение `Domain` и `Path` обязательно
 - **Нет метода getItem** — парсинг `document.cookie` вручную или через библиотеку (js-cookie)
 - **Third-party cookies умирают** — не строй архитектуру на них
+- **Регенерируй сессионные куки при авторизации** — защита от session fixation атак
+- **Не полагайся на `Path` как средство безопасности** — используй `Domain` и Same Origin Policy
+- **Не используй куки для хранения больших данных** — они отправляются с каждым запросом, замедляя передачу (особенно на мобильных)
+- **Zombie cookies** (попытки восстановить удалённые куки скрытыми механизмами) — грубое нарушение приватности и законодательства (GDPR/ePrivacy)
 
 ---
 
@@ -362,6 +407,19 @@ Set-Cookie: tracking=id123; SameSite=None; Secure
 
 Что такое Third-party cookies?::Cookies, установленные доменом, отличным от посещаемого сайта (например, рекламные сети). Используются для кросс-сайтового трекинга. Блокируются современными браузерами.
 
+Что такое атрибут `Partitioned` (CHIPS)?::Включает изолированное партиционированное хранилище кук. Каждый сайт верхнего уровня получает свой экземпляр куки. Требует `Secure` и `SameSite=None`.
+
+Можно ли прочитать заголовок Set-Cookie через Fetch API?::Нет. Спецификация Fetch запрещает JavaScript читать заголовок Set-Cookie из объекта Response. Браузер фильтрует его.
+
+Как отправить cookies в CORS-запросе?
+?
+На клиенте: `xhr.withCredentials = true` или `fetch(url, { credentials: 'include' })`.
+На сервере: `Access-Control-Allow-Origin: <точный домен>` (не `*`) и `Access-Control-Allow-Credentials: true`.
+
+Является ли атрибут Path средством безопасности?::Нет. Злоумышленник может создать скрытый iframe с нужным Path и прочитать куку через `iframe.contentDocument.cookie`. Безопасность обеспечивается только Same Origin Policy (на уровне доменов).
+
+Что такое session fixation и как от неё защититься?::Атака, при которой злоумышленник навязывает жертве заранее известный ID сессии. Защита: регенерировать и переустанавливать сессионные куки при авторизации пользователя.
+
 ---
 
 ## Источники
@@ -370,9 +428,10 @@ Set-Cookie: tracking=id123; SameSite=None; Secure
 - MDN Web Docs: HTTP cookies — создание, атрибуты (Expires, Max-Age, Domain, Path, Secure, HttpOnly, SameSite), session vs persistent, CSRF, third-party cookies
 - MDN Web Docs: Заголовки Set-Cookie и Cookie (HTTP-справочник)
 - javascript.info: Куки, document.cookie — функции getCookie/setCookie/deleteCookie, SameSite, cookie prefixes
+- learn.javascript.ru: Дополнительно. Часть 3 — куки, document.cookie, setCookie/getCookie/deleteCookie, SameSite, CSRF
 
 ---
 
 ## Теги
 
-#конспект #javascript #браузер #cookies #http #set-cookie #samesite #httponly #secure #csrf #third-party-cookies #client-side-storage
+#конспект #javascript #браузер #cookies #http #set-cookie #samesite #httponly #secure #csrf #third-party-cookies #client-side-storage #cors #chips #session-fixation

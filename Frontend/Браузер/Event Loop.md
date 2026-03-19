@@ -108,6 +108,68 @@
   - Коллбэки могут выполниться несколько раз за один кадр без видимого результата
   - Или опоздать к моменту рендеринга
 
+### Общий Event Loop для одного origin
+
+Все окна (вкладки) одного источника (origin) делят один Event Loop для возможности синхронного взаимодействия. Web Worker имеет свой собственный цикл событий.
+
+### .click() vs физический клик пользователя
+
+При **физическом клике** пользователя по вложенному элементу (всплытие события):
+```
+click → promise → mutate → click → promise → mutate → timeout → timeout
+```
+Стек JS очищается после каждого обработчика, поэтому microtask checkpoint (promise, mutate) срабатывает между всплытиями.
+
+При **программном вызове** `element.click()`:
+```
+click → click → promise → mutate → promise → timeout → timeout
+```
+Метод `.click()` запускает диспетчеризацию синхронно. Скрипт, вызвавший `.click()`, остаётся в стеке JS → стек не пуст → микрозадачи не выполняются между обработчиками. Они выполняются только после завершения обоих обработчиков.
+
+### Двойной requestAnimationFrame для CSS-анимаций
+
+```javascript
+// Проблема: браузер может проигнорировать стартовое CSS-значение
+box.style.transform = 'translateX(1000px)';
+requestAnimationFrame(() => {
+  box.style.transition = 'transform 1s ease';
+  box.style.transform = 'translateX(500px)';
+});
+// Браузер может анимировать от 0px до 500px (вместо от 1000px до 500px)
+
+// Решение: двойной rAF
+box.style.transform = 'translateX(1000px)';
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    box.style.transition = 'transform 1s ease';
+    box.style.transform = 'translateX(500px)';
+  });
+});
+// Или: чтение getComputedStyle для принудительного расчёта стилей
+box.style.transform = 'translateX(1000px)';
+getComputedStyle(box).transform; // принудительный расчёт
+box.style.transition = 'transform 1s ease';
+box.style.transform = 'translateX(500px)';
+```
+
+### MutationObserver и батчинг
+
+MutationObserver использует микрозадачи. При добавлении 100 элементов в DOM коллбэк MutationObserver сработает **один раз** после завершения всех синхронных модификаций, вместо сотен синхронных событий мутаций.
+
+### preventDefault() в Promise не работает
+
+```javascript
+// ПЛОХО: программный клик по ссылке
+element.addEventListener('click', (e) => {
+  Promise.resolve().then(() => {
+    e.preventDefault(); // слишком поздно!
+  });
+});
+element.click();
+// Алгоритм клика и проверка флага отмены выполняются синхронно.
+// К моменту выполнения preventDefault() браузер уже перешёл по ссылке.
+```
+
 ### queueMicrotask()
 
 Явный API для добавления в Microtask Queue:
@@ -249,6 +311,16 @@ requestAnimationFrame(animateWithRAF);
 
 Каков минимальный интервал срабатывания setTimeout?::Около 4.7 миллисекунд (браузер устанавливает минимальную задержку для таймеров).
 
+Чем отличается порядок выполнения при физическом клике от программного `.click()`?::При физическом клике стек JS очищается после каждого обработчика → микрозадачи выполняются между всплытиями (click, promise, mutate, click, promise, mutate). При `.click()` скрипт остаётся в стеке → микрозадачи выполняются только после обоих обработчиков (click, click, promise, mutate, promise).
+
+Зачем нужен двойной requestAnimationFrame?::Чтобы браузер успел рассчитать стили (CSS calculation) между кадрами. Один rAF может не гарантировать применение стартового CSS-значения до запуска анимации. Альтернатива: чтение getComputedStyle для принудительного расчёта.
+
+Почему MutationObserver эффективнее синхронных mutation events?::MutationObserver использует микрозадачи и генерирует один батч-вызов коллбэка после завершения всех синхронных DOM-модификаций, вместо сотен синхронных событий.
+
+Делят ли вкладки одного сайта общий Event Loop?::Да. Все окна одного источника (origin) делят один Event Loop для возможности синхронного взаимодействия. Web Worker имеет свой собственный Event Loop.
+
+Почему preventDefault() не работает внутри Promise?::Алгоритм клика и проверка флага отмены выполняются синхронно. К моменту выполнения микрозадачи с preventDefault() браузер уже обработал действие по умолчанию.
+
 ---
 
 ## Источники
@@ -258,10 +330,19 @@ requestAnimationFrame(animateWithRAF);
 - Платформа: NotebookLM
 - Охваченные темы: event loop — main thread, call stack, task queue, microtask queue; порядок тика (Task → Microtasks → Rendering); requestAnimationFrame; синхронизация рендеринга с частотой экрана (~60 Гц)
 
-> ⚠️ Информация о `queueMicrotask()` и `scheduler.postTask()` **отсутствует в источниках** — добавлена из внешних знаний.
+**Статья:**
+- Название: Tasks, microtasks, queues and schedules
+- Автор: Jake Archibald
+
+**Видео:**
+- Название: Jake Archibald on the web browser event loop
+- Платформа: JSConf
+- Содержание: основной тред, setTimeout, этапы рендеринга, requestAnimationFrame, микрозадачи
+
+> ⚠️ Информация о `queueMicrotask()` и `scheduler.postTask()` **отсутствует в источниках ноутбука** — добавлена из внешних знаний.
 
 ---
 
 ## Теги
 
-#конспект #frontend #браузер #event-loop #call-stack #microtask #macrotask #requestanimationframe #promise #settimeout #performance #main-thread
+#конспект #frontend #браузер #event-loop #call-stack #microtask #macrotask #requestanimationframe #promise #settimeout #performance #main-thread #mutationobserver #raf

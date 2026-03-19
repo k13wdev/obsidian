@@ -96,6 +96,18 @@
 
 HTML-парсинг является реентерабельным процессом: выполнение JS может добавить новые токены во входной поток (через `document.write()`), поэтому парсер обязан дождаться завершения скрипта перед продолжением.
 
+### CDATA вне иностранного контента
+
+Если парсер встречает конструкцию `<![CDATA[...]]>` **вне** SVG или MathML, возникает ошибка `cdata-in-html-content`. Парсер интерпретирует секцию CDATA как обычный HTML-комментарий.
+
+### Символ NULL (U+0000)
+
+При обнаружении символа `U+0000 NULL` в потоке возникает ошибка `unexpected-null-character`. Символ заменяется на `U+FFFD REPLACEMENT CHARACTER` (�).
+
+### Float и Absolute элементы
+
+Элементы `float` и `position: absolute` вынимаются из обычного потока при построении Render Tree и привязываются в другом месте дерева. На их исходном месте создаётся «рамка-заполнитель» (placeholder frame).
+
 ## Сравнения и trade-offs
 
 | | HTML | XML | CSS |
@@ -177,6 +189,10 @@ Document
 
 Какое начальное состояние конечного автомата токенизации HTML?::Data state (состояние данных).
 
+Как браузер обрабатывает символ NULL (U+0000) в HTML?::Генерирует ошибку `unexpected-null-character` и заменяет символ на `U+FFFD REPLACEMENT CHARACTER` (�).
+
+Что происходит с CDATA-секцией вне SVG/MathML?::Ошибка `cdata-in-html-content`. Парсер интерпретирует `<![CDATA[...]]>` как обычный HTML-комментарий.
+
 ---
 
 ## Источники
@@ -185,6 +201,10 @@ Document
 - Название: «Работа браузера»
 - Платформа: NotebookLM
 - Охваченные темы: спецификация HTML5 — алгоритм токенизации (state machine), построение DOM-дерева; обработка ошибок (error tolerance); parser blocking и preload scanner; speculative parsing
+
+**Спецификация:**
+- Название: HTML Standard — WHATWG
+- Разделы: 13.2 Parsing HTML documents, 13.2.5 Tokenization, 13.2.6 Tree construction
 
 ---
 

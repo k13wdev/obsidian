@@ -150,6 +150,16 @@ for (const [key, value] of Object.entries(localStorage)) {
 }
 ```
 
+### SecurityError
+
+При доступе к `localStorage` или `sessionStorage` может быть выброшен `SecurityError`:
+- Если origin не является допустимым кортежем scheme/host/port (например, схемы `file:` или `data:`)
+- Если пользователь заблокировал cookies в настройках браузера
+
+### HTTP vs HTTPS — разные хранилища
+
+Документ, загруженный по HTTP (`http://example.com`), возвращает объект `localStorage`, **отличный** от объекта для того же сайта по HTTPS (`https://example.com`). Это разные origin.
+
 ### sessionStorage и новые вкладки
 
 ```javascript
@@ -162,6 +172,48 @@ sessionStorage.getItem('step'); // null
 ```
 
 Перезагрузка той же вкладки → данные сохраняются.
+
+### sessionStorage и opener
+
+Если страница имеет opener (открыта через `window.open()`), её `sessionStorage` изначально инициализируется как **копия** sessionStorage объекта opener. Но после этого они остаются **независимыми** — изменения в одном не влияют на другой.
+
+### Безопасная проверка доступности Storage (Feature Detection)
+
+```javascript
+function storageAvailable(type) {
+  let storage;
+  try {
+    storage = window[type];
+    const x = "__storage_test__";
+    storage.setItem(x, x);
+    storage.removeItem(x);
+    return true;
+  } catch (e) {
+    return (
+      e instanceof DOMException &&
+      (e.code === 22 ||
+        e.code === 1014 ||
+        e.name === "QuotaExceededError" ||
+        e.name === "NS_ERROR_DOM_QUOTA_REACHED") &&
+      storage &&
+      storage.length !== 0
+    );
+  }
+}
+
+// Использование:
+if (storageAvailable('localStorage')) {
+  // Безопасно использовать localStorage
+}
+```
+
+### Deep copy при извлечении объектов
+
+При извлечении через `JSON.parse(localStorage.getItem(...))` возвращается **глубокая копия** исходного объекта. Мутации извлечённого объекта не влияют на исходный объект в памяти.
+
+### Использование API методов вместо свойств объекта
+
+Рекомендуется использовать методы API (`setItem`, `getItem`, `removeItem`) вместо прямого доступа к свойствам (`localStorage.key = value`), чтобы избежать конфликтов с именами встроенных методов объекта Storage.
 
 ## Сравнения и trade-offs
 
@@ -236,6 +288,8 @@ window.addEventListener('storage', (e) => {
 - **Оборачивай в try/catch** — QuotaExceededError при переполнении
 - **Сторонние iframe** — доступ к Web Storage может быть заблокирован браузером
 - **Не полагайся на localStorage в режиме инкогнито** — данные удаляются при закрытии
+- **Используй `storageAvailable()` для feature detection** — простая проверка `window.localStorage` может не выявить SecurityError или нулевую квоту в приватном режиме
+- **Используй методы API вместо прямого доступа к свойствам** — `setItem`/`getItem`/`removeItem` вместо `localStorage.key = value`, чтобы избежать конфликтов с именами встроенных методов
 
 ---
 
@@ -262,6 +316,14 @@ window.addEventListener('storage', (e) => {
 Что произойдёт с sessionStorage при открытии нового окна/вкладки с тем же сайтом?::Создастся новая пустая сессия. sessionStorage нового окна изолирован от предыдущего.
 
 Отправляются ли данные localStorage на сервер автоматически?::Нет. В отличие от cookies, Web Storage не отправляется с HTTP-запросами.
+
+Что такое SecurityError при работе с Web Storage?::Исключение при: 1) origin не является допустимым (схемы file:/data:), 2) пользователь заблокировал cookies. Препятствует доступу к localStorage/sessionStorage.
+
+Разделяют ли HTTP и HTTPS версии сайта один localStorage?::Нет. `http://example.com` и `https://example.com` — разные origin, у каждого свой localStorage.
+
+Что происходит с sessionStorage при window.open()?::sessionStorage нового окна инициализируется как копия sessionStorage opener-а. Но после этого они независимы — изменения не синхронизируются.
+
+Как безопасно проверить доступность localStorage?::Функция storageAvailable() пытает записать и удалить тестовый ключ. Отлавливает QuotaExceededError и SecurityError. Простая проверка `window.localStorage` недостаточна.
 
 ---
 

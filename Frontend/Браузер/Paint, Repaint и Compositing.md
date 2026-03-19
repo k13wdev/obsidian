@@ -148,6 +148,38 @@ Main Thread
 
 Правило: выносить элементы на новые слои только при реальной необходимости и всегда проверять результат через DevTools.
 
+### Hit Testing через Paint Records
+
+Поток компоновщика использует данные записей рисования (paint records) для **hit testing** — определения, какой элемент находится под координатами события ввода. Compositor thread отправляет координаты в main thread, который проверяет paint records и находит целевой элемент.
+
+### Non-fast Scrollable Region и passive event listeners
+
+При делегировании событий на `document` или `body` **без** флага `passive: true`, compositor thread помечает всю страницу как «Non-fast scrollable region». В результате компоновщик **не может** осуществлять прокрутку самостоятельно — он ждёт ответа от main thread на каждое событие ввода, уничтожая плавность прокрутки.
+
+```javascript
+// ПЛОХО: вся страница становится "non-fast scrollable"
+document.addEventListener('touchstart', handler);
+
+// ХОРОШО: passive позволяет компоновщику не ждать
+document.addEventListener('touchstart', handler, { passive: true });
+```
+
+### Event Coalescing (Объединение событий)
+
+Типичное устройство передаёт событие `touchmove` ~120 раз/сек, а дисплей обновляется 60 раз/сек. Chrome объединяет (coalescing) непрерывные события и откладывает их отправку до следующего `requestAnimationFrame`. Для приложений рисования, где нужна точность между кадрами, используется `getCoalescedEvents()`.
+
+### Объединение областей перерисовки
+
+Браузер может объединить две отдалённые области перерисовки (например, фиксированный заголовок вверху и анимированный элемент внизу). Это приводит к перерисовке **всего экрана**, нивелируя оптимизацию.
+
+### Бюджет времени Paint на мобильных
+
+На один кадр выделяется ~10 мс. Этого недостаточно для сложной отрисовки на мобильных — во время анимации следует избегать триггеров Paint.
+
+### position: fixed и Low DPI экраны
+
+На HiDPI/Retina экранах `position: fixed` автоматически переносится на отдельный compositing layer. На Low DPI экранах — нет, так как это меняет метод рендеринга текста (с субпиксельного сглаживания на оттенки серого). Требуется ручное продвижение через `will-change`.
+
 ## Сравнения и trade-offs
 
 | Изменение | Layout | Paint | Composite |
@@ -226,6 +258,7 @@ Main Thread
 - **Сложные CSS-эффекты дорогие**: `box-shadow`, `filter: blur()`, `border-radius` на больших элементах — замедляют Paint
 - **Скролл бесплатен** если страница на compositing layers — compositor thread пересчитывает координаты без main thread
 - **Compositor Thread не блокируется JS** — анимации на GPU плавные, даже если JS выполняет тяжёлые операции
+- **Используй `{ passive: true }`** для touch/scroll обработчиков на document/body — иначе compositor thread не сможет прокручивать страницу самостоятельно
 
 ---
 
@@ -263,6 +296,16 @@ Main Thread
 
 Изменение какого CSS-свойства триггерит только Paint и Composite (без Layout)?::Визуальные свойства: background-color, color, box-shadow, border-radius (без изменения размеров) и т.д.
 
+Что такое Hit Testing и как оно связано с Paint Records?::Compositor thread использует данные paint records для определения элемента под координатами события ввода. Координаты отправляются в main thread, который проходит по paint records и находит целевой элемент.
+
+Что такое Non-fast Scrollable Region?::Область страницы с обработчиком событий (без passive: true), при попадании в которую compositor thread приостанавливает прокрутку и ждёт ответа от main thread. Если обработчик на document — вся страница становится «non-fast scrollable».
+
+Зачем нужен `{ passive: true }` для touch/scroll событий?::Сигнализирует compositor thread, что обработчик не вызовет `preventDefault()`. Компоновщик может продолжать прокрутку, не дожидаясь main thread, сохраняя плавность.
+
+Что такое Event Coalescing?::Chrome объединяет непрерывные события (touchmove ~120/сек) и откладывает их до следующего requestAnimationFrame (~60/сек). Для приложений рисования используется `getCoalescedEvents()` для получения всех промежуточных точек.
+
+Каков бюджет времени на Paint в одном кадре на мобильных?::Около 10 мс. Этого недостаточно для сложных отрисовок (box-shadow, blur), поэтому во время анимации следует избегать триггеров Paint.
+
 ---
 
 ## Источники
@@ -272,8 +315,20 @@ Main Thread
 - Платформа: NotebookLM
 - Охваченные темы: paint pipeline, stacking contexts, порядок отрисовки (WebKit/Blink); compositing — layer tree, compositor thread, raster threads, GPU; composite-only properties (transform, opacity); will-change и layer explosion
 
+**Статья:**
+- Название: Взгляд изнутри на современный веб-браузер (часть 3, 4)
+- Автор: Mariko Kosaka
+- Платформа: Chrome for Developers
+- Охваченные темы: compositor thread, hit testing, non-fast scrollable region, event coalescing
+
+**Статья:**
+- Название: Упрощение сложности покраски
+- Автор: Paul Lewis
+- Платформа: web.dev
+- Охваченные темы: paint profiling, layer promotion, paint area reduction
+
 ---
 
 ## Теги
 
-#конспект #frontend #браузер #paint #repaint #compositing #layers #gpu #will-change #transform #opacity #stacking-context #performance #critical-rendering-path
+#конспект #frontend #браузер #paint #repaint #compositing #layers #gpu #will-change #transform #opacity #stacking-context #performance #critical-rendering-path #passive-events #hit-testing #event-coalescing

@@ -49,6 +49,25 @@
 
 Система координат: относительно корневого кадра (`top`, `left`).
 
+### Алгоритм вычисления ширины элемента (WebKit, RenderBox::calcWidth)
+
+1. Вычисляется **доступная ширина контейнера** (`contentWidth`) — без учёта borders и scrollbar
+2. Вычисляется ширина элемента: абсолютное значение или процент от ширины контейнера
+3. Добавляются горизонтальные `border` и `padding` → «предпочтительная ширина»
+4. Если предпочтительная ширина > `max-width` → применяется `max-width`
+5. Если предпочтительная ширина < `min-width` (наименьшая неразрывная единица текста) → применяется `min-width`
+6. При разрыве строки рендерер уведомляет родителя о необходимости создать дополнительный рендерер
+
+### Внутренние объекты
+
+- **RenderView** (WebKit) / **ViewPortFrame** (Firefox) — корневой рендерер, соответствующий `<html>`, размеры равны viewport
+- **nsHTMLReflowState** (Firefox) — входной объект для layout, включает ширину родителей
+- **nsHTMLReflowMetrics** (Firefox) — выходной объект, содержит вычисленную высоту
+
+### Локальный layout
+
+Изменение позиции рендерера (без изменения размера) или вставка текста вызывает **локальный layout** — размеры берутся из кэша, изменяется только субдерево. Без этого каждое нажатие клавиши вызывало бы полную перекомпоновку.
+
 ### Механизм Dirty Bit
 
 ```
@@ -95,7 +114,17 @@
 | Методы позиционирования | `getBoundingClientRect()`, `getClientRects()` |
 | Прокрутка | `scrollWidth`, `scrollHeight`, `scrollTop` |
 | Методы | `focus()`, `scrollIntoView()` |
+| SVG | `computeCTM()`, `getBBox()`, `getComputedTextLength()` |
+| Mouse Events | `mouseEvt.layerX`, `mouseEvt.layerY`, `mouseEvt.offsetX`, `mouseEvt.offsetY` |
+| Window | `window.scrollX`, `window.scrollY`, `window.innerHeight`, `window.innerWidth` |
+| Фокус и выделение | `elem.focus()`, `inputElem.select()`, `textareaElem.select()` |
+| Scroll операции | `elem.scrollBy()`, `elem.scrollTo()`, `elem.scrollIntoView()`, `elem.scrollIntoViewIfNeeded()` |
 | Стили | `window.getComputedStyle()` в определённых условиях |
+
+**Условия, при которых `window.getComputedStyle()` форсирует layout:**
+- Элемент находится в shadow tree
+- Имеются viewport-зависимые медиа-запросы (`min-width`, `aspect-ratio`, `resolution`)
+- Запрошено геометрическое свойство: `height`, `width`, `top`, `bottom`, `margin`, `padding`, `transform`, `grid`
 
 ### Стандартный конвейер кадра
 
@@ -240,6 +269,12 @@ fastdom.measure(() => {
 
 Как обнаружить Forced Synchronous Layout в Chrome?::В Chrome DevTools → вкладка Performance → предупреждения "Forced reflow" (Принудительная перекомпоновка).
 
+Как WebKit (RenderBox::calcWidth) вычисляет ширину элемента?::1. contentWidth контейнера (без border/scrollbar). 2. Ширина элемента: абсолютная или % от контейнера. 3. Добавляет border + padding. 4. Проверяет max-width и min-width. 5. При разрыве строки — создаёт новый рендерер.
+
+Что такое локальный layout?::Перерасчёт только субдерева без изменения размеров (из кэша). Запускается при изменении позиции без изменения размера или при вводе текста. Без этого каждое нажатие клавиши вызывало бы полный layout.
+
+При каких условиях `getComputedStyle()` триггерит layout?::Если элемент в shadow tree, есть viewport-зависимые медиа-запросы, или запрошено геометрическое свойство (height, width, top, margin, transform, grid).
+
 ---
 
 ## Источники
@@ -248,6 +283,16 @@ fastdom.measure(() => {
 - Название: «Работа браузера»
 - Платформа: NotebookLM
 - Охваченные темы: алгоритм вычисления геометрии (WebKit); dirty bit mechanism; global vs incremental layout; forced synchronous layout; layout thrashing и решения (FastDOM); JS API, запускающие принудительный layout
+
+**Статья:**
+- Название: What forces layout/reflow. The comprehensive list.
+- Автор: Paul Irish
+- Содержание: полный список JS API, триггерящих layout
+
+**Статья:**
+- Название: Взгляд изнутри на современный веб-браузер (часть 3)
+- Автор: Mariko Kosaka
+- Платформа: Chrome for Developers
 
 ---
 
