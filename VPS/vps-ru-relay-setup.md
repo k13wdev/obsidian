@@ -206,9 +206,9 @@ sudo vi /etc/sing-box/config.json
     ],
     "rules": [
       { "action": "sniff" },
-      { "action": "reject", "network": "udp", "port": 443 },
       { "rule_set": ["geosite-ru"], "outbound": "direct" },
       { "rule_set": ["geoip-ru"],   "outbound": "direct" },
+      { "action": "reject", "network": "udp", "port": 443 },
       {
         "auth_user": ["<device-1>-hy2", "<device-2>-hy2"],
         "outbound": "hysteria2-exit"
