@@ -1,0 +1,29 @@
+# Project-local NotebookLM routing for the Claude subagent.
+# Fill ONE of: notebook_alias, notebook_id, notebook_title, or tag_query.
+
+enabled = true
+profile = "default"
+
+# Recommended: create a stable alias after login and notebook discovery.
+# Example:
+# nlm alias set senior-go-interview 12345678-1234-1234-1234-123456789abc --type notebook
+notebook_alias = ""
+
+# Alternative: use a raw UUID if you do not want an alias.
+notebook_id = ""
+
+# Alternative: exact notebook title match.
+notebook_title = ""
+
+# Alternative: tag-based smart selection query.
+tag_query = ""
+
+# If true, the agent should stay inside the resolved notebook unless the user
+# explicitly asks for cross-notebook work.
+single_notebook_mode = true
+
+# If true, the agent may fall back from alias/id/title to tag-based selection.
+allow_tag_fallback = true
+
+# Optional note for the agent and the human.
+purpose = "Senior Go backend interview grounding via NotebookLM"
